@@ -1,0 +1,75 @@
+var istart, iend, stime, stepe, viewtemp%, isokay%, exportchanno%, padcurrentpulse, numpulses%;
+var peakampl, icmndchanno%;
+
+viewtemp% := View(0);  'Save the current view
+View(viewtemp%);         'restore the original view
+DrawAll();
+FrontView(viewtemp%);
+
+
+icmndchanno% := Input("command current on which cannel?", 3); '7;
+numpulses% := Input("how many pulses do you want?", 1);
+exportchanno% := Input("export which cannel?|", 9); '7;
+padcurrentpulse := Input("pad current pulse with how many seconds ?", 1.5); '1.5
+
+'Make Virtual Channel to hold rectified current pulses
+var vchan%, thresh, i%;
+vchan% := makerectslpchan(icmndchanno%);
+HCursorDelete(-1);
+HCursorNew(vchan%);
+ChanShow(vchan%); ChanShow(exportchanno%);
+Optimise(vchan%); Optimise(exportchanno%);
+Draw(Cursor(0),120);
+FrontView(viewtemp%);
+Interact("Thresh",2);
+thresh := HCursor(1);
+
+'Get File Names Ready
+var fname$, rdirstring$, outname$;
+fname$ := Print$("%s%s",FileName$(3),FileName$(4));
+rdirstring$ := Print$("%s\%s",FileName$(2),fname$);
+outname$ := "sample_trace.csv";
+
+PrintLog("start\t");
+PrintLog("end\t");
+
+CursorDelete(1);
+CursorDelete(2);
+CursorActive(0, 4, vchan%, 0.1, "", "", thresh);
+CursorSearch(0);
+istart := Cursor(0);
+
+CursorNew(istart,1);
+CursorActive(1, 4, vchan%, "Cursor(1)+0.02", "Cursor(0)+30", "Cursor(0)",  thresh);
+for i% := 1 to (numpulses%*2)-1 do
+    CursorSearch(1,1);
+next
+iend := Cursor(1);
+
+XRange(istart-padcurrentpulse,iend+padcurrentpulse);
+'    View(viewtemp%);         'restore the original view
+'    DrawAll();
+'    FrontView(viewtemp%);
+
+isokay% := Input("okay?|", 1);
+
+if isokay% then
+    ExportChanList(1);            'Clear export list, sets zero shift
+    ExportChanList(istart-padcurrentpulse, iend+padcurrentpulse, exportchanno%); 'set channels to export
+    ExportTextFormat();           'reset the file dump dialog
+    ExportTextFormat(0, 0, 1);    'No header or summary
+    FilePathSet(rdirstring$);
+    FileSaveAs(outname$,1);   
+endif;
+
+ChanDelete(vchan%);
+
+func makerectslpchan(chan%)
+    var expr$, vchan%;
+    vchan% := MemChan(0, chan%);
+    MemImport(vchan%, chan%, 0.0, MaxTime()); 'Create channel copy
+    ChanProcessAdd(vchan%,3,0.001);
+    ChanProcessAdd(vchan%,0);
+    return vchan%;
+end
+

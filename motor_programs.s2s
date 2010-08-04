@@ -1,0 +1,47 @@
+'find motor programs using nerve activity on i2, bn2, rn
+var vh%, chantype, viewtemp%, i2chan%, bn2chan%, rnchan%, b8chan%, i2mmchan%, bn2mmchan%, rnmmchan%;
+var b8mmchan%,i2level, bn2level, rnlevel, b8level;
+
+vh% := View(0);  'Save the current view
+View(vh%);         'restore the original view
+DrawAll();
+FrontView(vh%);
+
+i2chan% := 1;
+bn2chan% := 3;
+rnchan% := 2;
+b8chan% := 5;
+
+i2level := -0.24;
+bn2level := 0.5;
+rnlevel := 0.1;
+b8level := -0.01;
+
+i2mmchan% := MemChan(5); bn2mmchan% := MemChan(5); rnmmchan% := MemChan(5); b8mmchan% := MemChan(5);
+                                                                                     
+MemImport(i2mmchan%,i2chan%,0.1,MaxTime(i2chan%),3,0.005,i2level); '2                  
+PrintMarkVals(i2mmchan%,i2chan%);
+
+MemImport(bn2mmchan%,bn2chan%,0.1,MaxTime(bn2chan%),2,0.01,bn2level); '2
+PrintMarkVals(bn2mmchan%,bn2chan%);
+
+MemImport(rnmmchan%,rnchan%,0.1,MaxTime(rnchan%),2,0.01,rnlevel); '2
+PrintMarkVals(rnmmchan%,rnchan%);
+
+MemImport(b8mmchan%,b8chan%,0.1,MaxTime(b8chan%),2,0.01,b8level); '2
+PrintMarkVals(b8mmchan%,b8chan%);
+
+
+func PrintMarkVals(eventChan%, waveChan%)
+var time := 0;
+var txt%; txt% := FileNew(1,1); 'Create a new text file
+if txt%<0 then Message("Text file not opened"); Halt endif;
+
+repeat
+    time := View(vh%).NextTime(eventChan%,time); 'Find next event
+    if time<>-1 then              'if found, print wave value at time
+        Print("%f\t%f\n",time,View(vh%).ChanValue(waveChan%,time));
+    endif;
+until time=-1;
+FileClose();
+end;

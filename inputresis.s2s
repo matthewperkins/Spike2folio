@@ -1,0 +1,152 @@
+var iserstart, iserstop, starts%, stops%, datachan%, axocurrent%, rwcnt%;
+var onthresh, offthresh, midthresh, istart, iend, vt%;
+var rsltsarr[20][225000], rlstmean[225000];
+var gotonext%, isokay%;
+var smthd%;
+var tstp1s, tstp2s, tstp3s, vstp1rmp, vstp2rmp, vstp3rmp;
+var tstp1e, tstp2e, tstp3e, vstp1i, vstp2i, vstp3i;
+var vstp1delt, vstp2delt, vstp3delt;
+var fname$, outresistname$, rdirstring$, outresistvh%;
+var stpw1, stpw2, stpw3, avgover;
+
+'Handle Views
+vt% := View(0);  'Save the current view
+outresistvh% := FileNew(1);
+FrontView(vt%);
+View(vt%);         'restore the original view
+DrawAll();
+
+'Get File Names Ready
+fname$ := Print$("%s%s",FileName$(3),FileName$(4));
+outresistname$ := "inputresistence.csv";
+outresistname$ := Print$("%s_%s",fname$,outresistname$);
+'Get File Col Titles Ready
+View(outresistvh%);
+        Print("stp1start,");
+        Print("stp1end,");        
+        Print("vstp1rmp,");
+        Print("vstp1i,");
+        Print("vstp1delt,");
+        
+        Print("stp1start,");
+        Print("stp2end,");        
+        Print("vstp2rmp,");
+        Print("vstp2i,");
+        Print("vstp2delt,");
+        
+        Print("stp3start,");
+        Print("stp3end,");        
+        Print("vstp3rmp,");
+        Print("vstp3i,");
+        Print("vstp3delt\n");
+View(vt%);
+'Script Constants as of now
+axocurrent% := 3;
+datachan% := 1;
+gotonext% := 1;
+avgover := 0.2;
+
+starts% := MemChan(2);
+stops% := MemChan(2);
+
+HCursorDelete(-1);
+HCursorNew(axocurrent%);
+Interact("on thresh",2);
+onthresh := HCursor(1);
+
+HCursorDelete(-1);
+HCursorNew(axocurrent%);
+Interact("off thresh",2);
+offthresh := HCursor(1);
+
+HCursorDelete(-1);
+HCursorNew(axocurrent%);
+Interact("mid thresh",2);
+midthresh := HCursor(1);
+
+rwcnt% := 0;
+isokay% := 1;
+
+while (gotonext%) do
+    CursorDelete(-1);
+    
+    CursorActive(0, 7, axocurrent%, 0.01, "", "", onthresh);  '8 falling thresh, 7 rising threshold
+    CursorSearch(0);
+    CursorVisible(0,1);
+    istart := Cursor(0);
+      
+    CursorNew(istart,1);
+    CursorActive(1, 7, axocurrent%, "Cursor(0)+0.1", "Cursor(0)+30", "Cursor(0)",  offthresh);
+    CursorSearch(1);
+    iend := Cursor(1);
+    tstp3e := iend;
+    
+    XRange(Cursor(0)-35,Cursor(0)+35);
+    
+    isokay% := Input("okay?|", 1);
+ 
+    if isokay% then
+        
+        MemSetItem(starts%, 0, Cursor(0));
+        MemSetItem(stops%, 0, Cursor(1));
+        
+        CursorActive(0, 8, axocurrent%, 0.1, "", "", onthresh);  '7 rising threshold
+        CursorSearch(0);
+        tstp1s := istart;
+        tstp1e := Cursor(0);
+        vstp1rmp := ChanMeasure(datachan%,2,tstp1s-avgover, tstp1s);
+        vstp1i := ChanMeasure(datachan%,2,tstp1e-avgover,tstp1e);
+        vstp1delt := vstp1i - vstp1rmp;
+        
+        CursorActive(0, 8, axocurrent%, 0.1, "", "", midthresh);  '8 falling threshold
+        CursorSearch(0);
+        tstp2s := Cursor(0);
+        CursorActive(0, 7, axocurrent%, 0.1, "", "", midthresh);  '7 rising threshold
+        CursorSearch(0);
+        tstp2e := Cursor(0);
+        vstp2rmp := ChanMeasure(datachan%,2,tstp2s-avgover, tstp2s);
+        vstp2i := ChanMeasure(datachan%,2,tstp2e-avgover,tstp2e);
+        vstp2delt := vstp2i - vstp2rmp;
+        
+        CursorActive(0, 8, axocurrent%, 0.1, "", "", offthresh);  '8 falling threshold
+        CursorSearch(0);
+        tstp3s := Cursor(0);
+        vstp3rmp := ChanMeasure(datachan%,2,tstp3s-avgover, tstp3s);
+        vstp3i := ChanMeasure(datachan%,2,iend-avgover,iend);
+        vstp3delt := vstp3i - vstp3rmp;
+        
+        ChanData(datachan%, rsltsarr[rwcnt%][], istart, iend);
+        rwcnt% := rwcnt% + 1;
+        View(outresistvh%);
+        Print("%.4f,",tstp1s);
+        Print("%.4f,",tstp1e);        
+        Print("%.4f,",vstp1rmp);
+        Print("%.4f,",vstp1i);
+        Print("%.4f,",vstp1delt);
+        
+        Print("%.4f,",tstp2s);
+        Print("%.4f,",tstp2e);        
+        Print("%.4f,",vstp2rmp);
+        Print("%.4f,",vstp2i);
+        Print("%.4f,",vstp2delt);
+        
+        Print("%.4f,",tstp3s);
+        Print("%.4f,",tstp3e);        
+        Print("%.4f,",vstp3rmp);
+        Print("%.4f,",vstp3i);
+        Print("%.4f\n",vstp3delt);
+        View(vt%);
+    endif;
+    gotonext% := Input("next?|", 1);
+    if gotonext% then
+            Cursor(0,Cursor(0)+1)
+    endif
+wend;
+
+ArrSum(rsltsarr[0:rwcnt%][], rlstmean[]);
+
+View(vt%);
+fname$ := Print$("%s%s",FileName$(3),FileName$(4));
+rdirstring$ := Print$("%s\%s",FileName$(2),fname$);
+
+View(outresistvh%); FilePathSet(rdirstring$); FileSaveAs(outresistname$,1); FileClose();

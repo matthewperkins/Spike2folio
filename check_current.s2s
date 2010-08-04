@@ -1,0 +1,45 @@
+var istart;
+var iend; 
+var stime;
+var stepe;
+var wpos;
+var currampl;
+
+stepe := 0.002;
+
+CursorDelete(1);
+CursorDelete(2);
+
+CursorActive(0, 7, 1, 0.1, "", "", 0.001);
+CursorSearch(0);
+istart := Cursor(0);
+'PrintLog("start\n");
+'PrintLog(istart);
+
+CursorNew(istart,1);
+CursorActive(1, 8, 1, "Cursor(0)+0.02", "Cursor(0)+8", "Cursor(0)",  0.001);
+CursorSearch(1,1);
+iend := Cursor(1);
+
+currampl := ChanMeasure(1,2,Cursor(0),Cursor(1)); '{which chan}, {2 - measure mean}, {Cursor 1 - start}, {Cur2-end},
+
+'PrintLog("currentamlitude\n");
+PrintLog(currampl);
+'PrintLog("spikes\n");
+
+'CursorNew(istart,2);
+'CursorActive(2, 4, 4, "Cursor(2)", "Cursor(1)", "", 0.050);
+'while Cursor(2)<iend do
+'    CursorSearch(2,2);
+'    If CursorValid(2) then    
+'        stime := Cursor(2);
+'        PrintLog(stime);
+'        wpos := stime + stepe;
+'        Cursor(2,wpos);
+'    Else 
+'        PrintLog("endspikes\n"); 
+'        break
+'    endif
+'wend;
+'PrintLog("end\n");
+'PrintLog(iend);

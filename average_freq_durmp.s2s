@@ -1,0 +1,134 @@
+'want to count number of spikes during protraction and retraction
+var numchans%, chansarry%[10], viewsarry%[10], whchchantmp%, avgfreqtmp, latencytmp, peakfreqtmp;
+var prostartchan%, proendchan%, reendchan%;
+var psholder, peholder, reholder;
+var tmpmp[3];
+var i%, j%;
+
+'HANDLE VIEWS
+var viewtemp%;
+viewtemp% := View(0);  'Save the current view
+View(viewtemp%);         'restore the original view
+DrawAll();
+FrontView(viewtemp%);
+
+'PLACE HOLDERS FOR MP CHANNELS
+psholder := 1;
+peholder := 1;
+reholder := 1;
+
+'DESIGNATE MPCHANNELS AND CELL CHANNELS
+prostartchan%:= Input("What channel\n is protraction start mark?", 401);
+proendchan% := Input("What channel\n is protraction end mark?", 402);
+reendchan% := Input("What channel\n is retraction end mark?", 403);
+numchans% := Input("how many event channels?", 4);
+
+'NEW FILES / CELL CHANNELS / ONE FILE PER CELL
+var fname$, rdirstring$;
+fname$ := Print$("%s%s",FileName$(3),FileName$(4));
+rdirstring$ := Print$("%s\%s",FileName$(2),fname$);
+
+for i% := 1 to numchans% do
+    View(viewtemp%);    
+    DrawAll();
+    chansarry%[i%-1] := Input(Print$("%g st channel",i%), 1);
+    viewsarry%[i%-1] := FileNew(1);
+    Print("pro_start,");
+    Print("pro_end,");
+    Print("re_end,");
+    Print("avg_freq_p,");
+    Print("laten_p,");
+    Print("avg_freq_r,");
+    Print("laten_r,");
+    Print("num_spk_p,");
+    Print("times_spk_p\n");
+    View(viewtemp%);    
+    DrawAll();
+next
+
+'LOOP THRU EVENTS ON PROTRACTION START CHANNEL
+for i% := 1 to MemGetItem(prostartchan%) do
+    filltmpmp();
+    for j% := 1 to numchans% do
+        printavglatpeakarry(chansarry%[j%-1],viewsarry%[j%-1]);
+    next
+next
+
+'SAVE / CLOSE FILES
+var outchanname$; 
+for j% := 1 to numchans% do
+    View(viewtemp%);
+    outchanname$ := Print$("%s_%s.csv",fname$, ChanTitle$(chansarry%[j%-1]));
+    View(viewsarry%[j%-1]);
+    FilePathSet(rdirstring$); FileSaveAs(outchanname$,1); FileClose();
+next
+
+ChanSave(prostartchan%,0); ChanSave(proendchan%,0); ChanSave(reendchan%,0);
+
+proc filltmpmp()
+    tmpmp[0] := MemGetItem(prostartchan%, psholder);
+    tmpmp[1] := MemGetItem(proendchan%, peholder);
+    tmpmp[2] := MemGetItem(reendchan%, reholder);
+    psholder := psholder + 1;
+    peholder := peholder + 1;
+    reholder := reholder + 1;
+end
+
+'PRINTS TO CSV EVENT INFORMATION IN A SINGLE MOTOR PROGRAM (TMPMP[PROSTART, PROEND, REEND])
+'FORM IS:
+'pro_start, proend, reend, avg_freq_pro, lat_fspk_pro, avg_freq_re, lat_fspk_re, num_spks_pr, \
+'... time_each_spk_pro, num_spks_re, time_each_spk_re
+'If there are no spikes in pro or retract, the latency is a blank cell, and the time_each_spk is one blank cell
+
+func printavglatpeakarry(chan%,vh%) 
+    var proavg, prolat, reavg, relat, pspksarry[4000], rspksarry[4000], numpspks%, numrspks%;
+    proavg := ChanMeasure(chan%, 2, tmpmp[0], tmpmp[1]);'chan measure option 2 is mean   
+    prolat := NextTime(chan%, tmpmp[0]);  
+    if (prolat>tmpmp[1]) then
+        prolat := 0; 
+    else prolat := prolat - tmpmp[0]; endif
+    reavg := ChanMeasure(chan%, 2, tmpmp[1], tmpmp[2]);  
+    relat := NextTime(chan%, tmpmp[1]);
+    if (relat>tmpmp[2]) then
+        relat := 0; 
+    else relat := relat - tmpmp[1]; endif
+    numpspks% := ChanData(chan%,pspksarry[],tmpmp[0],tmpmp[1]);
+    numrspks% := ChanData(chan%,rspksarry[],tmpmp[1],tmpmp[2]);
+    if(numpspks%) then 
+        resize pspksarry[numpspks%]; endif
+    if(numrspks%) then 
+        resize rspksarry[numrspks%]; endif
+    View(vh%);
+    Print("%.4f,",tmpmp[0]);
+    Print("%.4f,",tmpmp[1]);
+    Print("%.4f,",tmpmp[2]);
+    Print("%.4f,",proavg);
+    if (prolat<0.0001) then
+        Print(",");
+    else
+        Print("%.4f,",prolat);
+    endif
+    Print("%.4f,",reavg);
+    if (relat<0.0001) then
+        Print(",");
+    else
+        Print("%.4f,",relat);
+    endif
+    Print("%g,",numpspks%);
+    if(numpspks%) then 
+        Print("%.4f,",pspksarry);
+    else 
+        Print(",");
+    endif
+    Print("%g,",numrspks%);
+    if(numrspks%) then 
+        Print("%.4f,",rspksarry);
+    else 
+        Print(",");
+    endif
+    Print("\n");
+    View(viewtemp%);
+end
+
+    
+

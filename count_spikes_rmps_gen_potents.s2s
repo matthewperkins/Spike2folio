@@ -1,0 +1,192 @@
+var istart, iend, stime, stepe, wpos, currampl, viewtemp%, isokay%, gotonext%, icmndoffset,icmndslope;
+var peakampl, icmndupthrsh, icmnddwnthrsh, icmndchanno, countspkchanno, spkchanthresh, b4rmp, b4rmppre, b4rmppost;
+var spkcount, b8rmp, b8chan, b8memchan, b4underdepol, b4b5memchan, firstspk;
+var drgevents[10][20], drgeventchan%, nrvevents[20], nrveventchan%, aredrgevents%, arenrvevents%, i%; '[row][col]
+var outspkname$, outmetricname$, fname$,index%,outspkvh%,outmetricvh%;
+
+gotonext% := 1;
+icmndoffset := 0.000005;     'should be close to this value
+icmndslope :=  0.00928907571;  '
+stepe := 0.0002;
+
+b4rmppre := 1.5; 'time before current pulse that starts rmp average
+b4rmppost := 0.5; 'time before current pulse that stops rmp average 
+
+'Handle Views
+viewtemp% := View(0);  'Save the current view
+FrontView(viewtemp%);
+outmetricvh% := FileNew(1);
+outspkvh% := FileNew(1);
+View(viewtemp%);         'restore the original view
+DrawAll();
+
+'Get File Names Ready
+fname$ := Print$("%s%s",FileName$(3),FileName$(4));
+outspkname$ := "justspikes.csv";
+outmetricname$ := "metrics.csv";
+outspkname$ := Print$("%s_%s",fname$,outspkname$);
+outmetricname$ := Print$("%s_%s",fname$,outmetricname$);
+
+'Interact to find which channels
+View(viewtemp%);
+FrontView(viewtemp%);
+HCursorDelete(-1);
+icmndchanno := Input("command current\n on which cannel?", 7); '7;
+HCursorNew(icmndchanno);
+ChanShow(icmndchanno);
+Optimise(icmndchanno);
+Draw(Cursor(0),120);
+FrontView(viewtemp%);
+Interact("Thresh",2);
+icmndupthrsh := HCursor(1);
+icmnddwnthrsh := icmndupthrsh;
+
+countspkchanno := Input("Count Spikes on\n which cannel?", 4);
+b8chan:= Input("What channel\n is b8?", 5);
+
+aredrgevents% := Input("are there\n drug events?",0); '0 or 1 I guess
+if aredrgevents% then
+drgevnts()
+endif;
+
+
+
+View(viewtemp%);
+FrontView(viewtemp%);
+
+b8memchan := MemChan(0,b8chan);
+MemImport(b8memchan, b8chan, 0.0, MaxTime());
+ChanProcessAdd((b8memchan),1,20);
+
+b4b5memchan := MemChan(0,countspkchanno);
+MemImport(b4b5memchan, countspkchanno, 0.0, MaxTime());
+ChanProcessAdd((b4b5memchan),1,1.5);
+'MemImport(MemChan(0, 5), 5, 0.0, MaxTime()); 'Create channel copy
+'ChanProcessAdd(401,1); 'Add Smooth to channel 401
+'ChanProcessArg(401,1,1,20); 'Set Smooth Time constant (s)
+
+
+spkchanthresh := -0.025;'-0.025 seems to work well
+
+View(outmetricvh%);
+Print("start,");                
+Print("b4b5rmp,");              
+Print("b8rmp,");                
+Print("currentamlitude,");      
+Print("b4b5und_lay_depol,");    
+Print("b4b5_fspk_latency,");     
+Print("b4spkcount,");        
+Print("end\n");             
+
+View(outspkvh%);
+Print("start\n");                
+
+View(viewtemp%);
+FrontView(viewtemp%);
+while (gotonext%) do
+    CursorDelete(1);
+    CursorDelete(2);
+
+    CursorActive(0, 7, icmndchanno, 0.1, "", "", icmndupthrsh);
+    CursorSearch(0);
+    istart := Cursor(0);
+
+    CursorNew(istart,1);
+    CursorActive(1, 8, icmndchanno, "Cursor(0)+0.02", "Cursor(0)+8", "Cursor(0)",  icmnddwnthrsh);
+    CursorSearch(1,1);
+    iend := Cursor(1);
+
+    XRange(Cursor(0)-35,Cursor(0)+35);
+'    View(viewtemp%);         'restore the original view
+'    DrawAll();
+'    FrontView(viewtemp%);
+
+    isokay% := Input("okay?|", 1);
+
+    if isokay% then
+        b4rmp := ChanMeasure(countspkchanno,2,istart - b4rmppre,istart - b4rmppost);
+        b8rmp := ChanMeasure(b8memchan, 2, istart - 20, istart - 10);
+
+        currampl := ChanMeasure(icmndchanno,2,Cursor(0),Cursor(1)); '{which chan}, {2 - measure mean}, {Cursor 1 - start}, {Cur2-end},
+        currampl := (currampl - icmndoffset)/icmndslope; 'note constants come from calibration performed on March 8th 2010, MP from I2 10mV/nA out on axclamp.
+        
+        b4underdepol := ChanMeasure(b4b5memchan, 8, Cursor(0), Cursor(1)); '{14 - measure peak}
+        b4underdepol := b4underdepol - b4rmp; 'subtract smoothed membrane potential at the middle of a 3 second current pulse from the pre-pulse resting potential. 
+        
+        View(outmetricvh%);
+        Print("%.4f,",istart);
+        Print("%0.2f,",b4rmp*1000);
+        Print("%0.2f,",b8rmp*1000);
+        Print("%.4f,",currampl);
+        Print("%0.3f,",b4underdepol*1000);
+        
+        View(outspkvh%);
+        Print("%.4f,",istart);
+        
+        View(viewtemp%);
+        FrontView(viewtemp%);
+
+        CursorNew(istart,2);
+        CursorActive(2, 4, countspkchanno, "Cursor(2)", "Cursor(1)", "", spkchanthresh);
+        
+        spkcount := 0;
+        while Cursor(2)<iend do
+            CursorSearch(2,2);
+            If CursorValid(2) then    
+                spkcount := spkcount + 1;
+                stime := Cursor(2);
+                If (spkcount = 1) then
+                    firstspk := stime;
+                endif;    
+                View(outspkvh%);
+                Print("%.4f,",stime-istart);
+                View(viewtemp%);
+                wpos := stime + stepe;
+                Cursor(2,wpos);
+            Else
+                View(outspkvh%);
+                Print("\n");
+                View(viewtemp%);
+                break
+            endif
+        wend;
+            
+        firstspk := firstspk - istart;
+        
+        View(outmetricvh%);
+        Print("%.4f,",firstspk);
+        Print("%3d,",spkcount);
+        Print("%.4f\n",iend);
+        View(viewtemp%);
+       
+    endif;
+    gotonext% := Input("next?|", 1);
+    if gotonext% then
+            Cursor(0,Cursor(0)+1)
+    endif
+wend;
+
+var rdirstring$;
+View(viewtemp%);
+fname$ := Print$("%s%s",FileName$(3),FileName$(4));
+rdirstring$ := Print$("%s\%s",FileName$(2),fname$);
+
+View(outspkvh%); FilePathSet(rdirstring$); FileSaveAs(outspkname$,1); FileClose();
+View(outmetricvh%); FilePathSet(rdirstring$); FileSaveAs(outmetricname$,1); FileClose();
+
+proc drgevnts()
+    var j%, howmanydrugevnts%, drgevntdescrpt$, evntlentmp%;
+    howmanydrugevnts% := Input("How many different drug conditions?",1);
+    for j% := 1 to howmanydrugevnts% do
+        drgeventchan% := Input("which chan\n has these drug events?", 9); 'should I split on a off events to two channels?
+        drgevntdescrpt$ := Input$("label these drug events","nice description here");
+        evntlentmp% := ChanData(drgeventchan%, drgevents[j%-1][1:19], 0, MaxTime(drgeventchan%));
+        drgevents[j%-1][0] := evntlentmp%;
+        View(outmetricvh%);Print("%s,",drgevntdescrpt$);
+        View(outspkvh%);Print("%s,",drgevntdescrpt$);
+    
+        View(outmetricvh%); Print("%.2f,",drgevents[j%-1][1:evntlentmp%]); Print("\n");
+        View(outspkvh%); Print("%.2f,",drgevents[j%-1][1:evntlentmp%]); Print("\n");
+        View(viewtemp%);
+    next;
+end

@@ -1,0 +1,79 @@
+var istart, iend, stime, stepe, wpos, currampl, viewtemp%, isokay%, gotonext%, icmndoffset,icmndslope;
+var peakampl, icmndupthrsh, icmnddwnthrsh, icmndchanno, countspkchanno, spkchanthresh, rmp, rmppre, rmppost;
+
+gotonext% := 1;
+icmndoffset := 0.000005;     'should be close to this value
+icmndslope :=  0.00928907571;  '
+stepe := 0.0002;
+
+rmppre := 1.5; 'time before current pulse that starts rmp average
+rmppost := 0.5; 'time before current pulse that stops rmp average 
+
+viewtemp% := View(0);  'Save the current view
+View(viewtemp%);         'restore the original view
+DrawAll();
+FrontView(viewtemp%);
+
+
+icmndupthrsh := Input("command current up thresh?|", 0.05); '0.05;
+icmnddwnthrsh := Input("command current down thresh?|", 0.01); '0.01;
+icmndchanno := Input("command current on which cannel?|", 7); '7;
+countspkchanno := Input("Count Spikes on which cannel?|", 4);
+spkchanthresh := -0.025;
+
+
+while (gotonext%) do
+    CursorDelete(1);
+    CursorDelete(2);
+
+    CursorActive(0, 7, icmndchanno, 0.1, "", "", icmndupthrsh);
+    CursorSearch(0);
+    istart := Cursor(0);
+
+    CursorNew(istart,1);
+    CursorActive(1, 8, icmndchanno, "Cursor(0)+0.02", "Cursor(0)+8", "Cursor(0)",  icmnddwnthrsh);
+    CursorSearch(1,1);
+    iend := Cursor(1);
+
+    XRange(Cursor(0)-35,Cursor(0)+35);
+'    View(viewtemp%);         'restore the original view
+'    DrawAll();
+'    FrontView(viewtemp%);
+
+    isokay% := Input("okay?|", 1);
+
+    if isokay% then
+        rmp := ChanMeasure(countspkchanno,2,istart - rmppre,istart - rmppost);
+        PrintLog("start\t");
+        PrintLog("%.4f\n",istart);
+
+        currampl := ChanMeasure(icmndchanno,2,Cursor(0),Cursor(1)); '{which chan}, {2 - measure mean}, {Cursor 1 - start}, {Cur2-end},
+        currampl := (currampl - icmndoffset)/icmndslope; 'note constants come from calibration performed on March 8th 2010, MP from I2 10mV/nA out on axclamp.
+        PrintLog("currentamlitude\t");
+        PrintLog("%.4f\n",currampl);
+        PrintLog("RMP\t");
+        PrintLog("%0.2f\n",rmp*1000);
+        PrintLog("spikes\t");
+
+        CursorNew(istart,2);
+        CursorActive(2, 4, countspkchanno, "Cursor(2)", "Cursor(1)", "", spkchanthresh);
+        while Cursor(2)<iend do
+            CursorSearch(2,2);
+            If CursorValid(2) then    
+                stime := Cursor(2);
+                PrintLog("%.4f\t",stime);
+                wpos := stime + stepe;
+                Cursor(2,wpos);
+            Else 
+                PrintLog("\n"); 
+                break
+            endif
+        wend;
+    PrintLog("end\t");
+    PrintLog("%.4f\n",iend);
+    endif;
+    gotonext% := Input("next?|", 1);
+    if gotonext% then
+            Cursor(0,Cursor(0)+1)
+    endif
+wend;    
