@@ -1,7 +1,0 @@
-var stimchanno%, sT, eT, nervestimamp, fallingthresh, risingtresh;
-sT = 0;
-eT = 0
-while (gotonext) do
-    
-    ChanSearch(stimchanno%, 7, sT, eT, risingtresh); '7 = rising threshold
-    ChanSearch(stimchanno%, 8, sT, eT, fallingthresh); '8 = falling threshold

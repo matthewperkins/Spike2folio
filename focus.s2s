@@ -1,5 +1,0 @@
-var fhh%
-
-fhh% := FocusHandle()
-
-FrontView(fhh%)
