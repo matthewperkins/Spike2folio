@@ -45,7 +45,8 @@ FillBigArray(howmanychan+3);
 Proc FillBigArray(n%)
     var bigarray[n%][20000];
     var itermessage$, i%, whichchantmp%,j%;
-    var enthresh, spktmstmp, spkvltstmp, rmptmp, slopchantmp%, eventchantmpstart%, eventchantmpend%, tmpthresh;
+var enthresh, spktmstmp, spkvltstmp, rmptmp, slopchantmp%, eventchantmpstart%, eventchantmpend%, tmpthresh;
+var slopeorno%;
     for i% := 1 to n%-2 do
         if (i% = 1) then
             whichchantmp% := enstimchan%;
@@ -59,7 +60,12 @@ Proc FillBigArray(n%)
             itermessage$   := Print$("%s", "tell me the next channel");
             whichchantmp%   := Input(itermessage$,i%-1);
             whichchan%[i%] := whichchantmp%;
-            eventchantmpstart% := findspks(whichchantmp%);
+            slopeorno% := Input("compute spikes from slope? 1 is yes", 1);
+            if (slopeorno%) then
+                eventchantmpstart% := findspksslp(whichchantmp%);
+            else
+                eventchantmpstart% := findspkthrsh(whichchantmp%);
+            endif
             for j% := 0 to len(bigarray[0][])-1 do
                 MemDeleteTime(eventchantmpstart%, 3, (bigarray[0][j%]-0.005), (bigarray[1][j%]+0.005));
             next
@@ -108,7 +114,7 @@ func findsixsigma(n%)
     return thresh;
 end
 
-func findspks(n%)
+func findspksslp(n%)
     var slopchantmp%, eventchantmp%, tmpthresh;
     var append$ := "spk";
     slopchantmp% := MemChan(0,n%);
@@ -127,6 +133,21 @@ func findspks(n%)
     MemImport(eventchantmp%, slopchantmp%, startt, endt, 0, 0.0001, tmpthresh);
     setchantitle(n%, eventchantmp%, append$);
     ChanDelete(slopchantmp%);
+    return eventchantmp%;
+end
+
+func findspkthrsh(n%)
+    var eventchantmp%, tmpthresh;
+    var append$ := "spk";
+    ChanHide(-1); ChanShow(n%);
+    HCursorDelete(-1);
+    HCursorNew(n%); HCursorNew(n%);
+    Interact("move cursors",2);
+    HCursorRenumber();
+    tmpthresh := HCursor(2) - HCursor(1);
+    eventchantmp% := MemChan(2);
+    MemImport(eventchantmp%, n%, startt, endt, 0, 0.0001, tmpthresh);
+    setchantitle(n%, eventchantmp%, append$);
     return eventchantmp%;
 end
 
