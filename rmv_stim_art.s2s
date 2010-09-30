@@ -14,7 +14,6 @@ View(viewtemp%);         'restore the original view
 DrawAll();
 FrontView(viewtemp%);
 
-smplrate := 5000; 
 
 CursorDelete(-1);
 CursorNew();CursorNew();
@@ -31,52 +30,70 @@ stimeventstart% := findstimulusstart(stimchan%);
 stimeventend% := findstimulusend(stimchan%);
 
 'FIND AVERAGE ISI, TO INDEX ARRAYS WITH
-var avgisi, dpavgisi%, dpstimart%, timstimart, avgstimdur;
+var avgisi, dpavgisi%, dpstimart%, timstimart, avgstimdur, minisi, minisidp%;
+smplrate := Input("what is the sample rate (Hz)", 2000); 
 stims[0] := ChanData(stimeventstart%, stims[1:4999],startt, endt);
 avgisi := findavgisi(stimeventstart%);
+minisi := findminisi(stimeventstart%);
 avgstimdur := findavgstmdur(stimeventstart%,stimeventend%);
 dpavgisi% := floor(avgisi*smplrate);
-dpstimart% := Ceil(dpavgisi%*0.95);
-timstimart := (dpavgisi%*0.95/smplrate);
+dpstimart% := Ceil(dpavgisi%*0.99);
+timstimart := (dpavgisi%*0.99/smplrate);
+
+'SET PADDINGS
+var leftpadmillisec, prepad, postpad, cellavgdurprcnt;
+prepad := 3; 
+postpad := 3;
+leftpadmillisec := 10;
+cellavgdurprcnt := 0.1; 'as percent (of avg stim isi)
+cellavgdurprcnt := cellavgdurprcnt*avgisi;  'percnts now seconds
 
 'FIND THE AVERAGE PERI STIMULUS WAVE FORM, SET LEFT PAD
-var j%, leftpadmillisec, prepad, postpad, outchan%, whichchan%;
+var j%, outchan%, whichchan%, iscell%;
 whichchan% := 0;
 for j% := 1 to howmany% do
-    prepad := 3; 
-    postpad := 3;
-    leftpadmillisec := 10;
     whichchan% := Input("whichchan?", whichchan%+j%);
+    iscell% := Input("is this channel a cell?", 1);
     findavgstimart(whichchan%,avgdart[],leftpadmillisec,dpstimart%,timstimart);
     tlen% := avgdart[0];
     PrintLog(avgdart[1:tlen%]);
-    outchan% := substract(whichchan%,avgdart[1:tlen%],leftpadmillisec,dpstimart%,timstimart);
-    zeroout(outchan%,prepad,postpad,avgstimdur);
+    outchan% := substract(whichchan%,avgdart[1:tlen%],leftpadmillisec,dpstimart%,timstimart, iscell%, cellavgdurprcnt);
+    zeroout(outchan%,prepad,postpad,avgstimdur,iscell%, cellavgdurprcnt, avgisi);
 next
 
-func substract(chan%,avgstimart[],prepadmillisec, dplength%,timart)
+'FUNCTIONS ARE DEFINED BELOW:
+func substract(chan%,avgstimart[], prepadmillisec, dplength%,timart, iscll%, cellavgdur) 'give the time over which to avg the cell mem as prcnt(of avgisi)
     var dupchan%;
     dupchan% := MemChan(0,chan%);
     MemImport(dupchan%,chan%,0,MaxTime(chan%));
 
     var i%, count%;
-    var tmp[dplength%], sumtmp[dplength%];
+    var tmp[dplength%], prestimavg, thistmplength%, avgrmp := 0;
     count% := 0;
     for i% := 1 to stims[0]-1 do
-        ChanData(chan%,tmp[],stims[i%]-(prepadmillisec/1000),stims[i%]+timart);
-        ArrSub(tmp[],avgstimart[]);
-        ChanWriteWave(dupchan%,tmp[],stims[i%]-(prepadmillisec/1000));
+    thistmplength% := ChanData(chan%,tmp[],stims[i%],stims[i%+1]);
+'    if (iscll%) then
+'       avgrmp := ChanMeasure(chan%,2,stims[i%+1]-cellavgdur, stims[i%+1]);
+'    endif;
+    ArrSub(tmp[],avgstimart[]);
+    ArrSub(tmp[],avgrmp);
+    ChanWriteWave(dupchan%,tmp[],stims[i%]-(prepadmillisec/1000));
     next;
     return dupchan%
 end
 
-proc zeroout(chan%, prestartmilli, postendmilli, avgdur);
-    var i%, ontmp, prelen%, postlen%;
+proc zeroout(chan%, prestartmilli, postendmilli, avgdur, iscll%, cellavgdur, avgisi); 'avgisi is time not data points
+    var i%, ontmp, prelen%, postlen%, avgrmp;
     prelen% := Ceil((prestartmilli/1000)*smplrate);
     postlen% := Ceil((avgdur*smplrate)+(postendmilli/1000)*smplrate);
     var prearr[prelen%], postarr[postlen%];
     for i% := 1 to stims[0]-1 do
-        ontmp := MemGetItem(stimeventstart%, i%);
+    ontmp := MemGetItem(stimeventstart%, i%);
+'        if (iscell%) then
+'            avgrmp:= ChanMeasure(chan%,1, ontmp-(prestartmilli/1000)-(avgisi*cellavgdur),ontmp-(prestartmilli/1000));
+'            ArrConst(prearr[],avgrmp);
+'            ArrConst(postarr[],avgrmp);
+'        endif;
         ChanWriteWave(chan%, prearr[], ontmp-(prestartmilli/1000));
         ChanWriteWave(chan%, postarr[], ontmp-0.001);
     next
@@ -128,6 +145,16 @@ func findavgisi(evntstimchan%)
     ArrDiff(midarray[]);
     ArrSum(midarray[1:midlen%-1], favgisi);
     Return favgisi;
+end
+
+func findminisi(evntstimchan%)
+    var i%, minisi, numevnts%;
+    numevnts% := stims[0];
+    var events[numevnts%];
+    ArrAdd(events[],stims[1 : numevnts%]);
+    ArrDiff(events[]);
+    Min(events[]);
+    Return minisi;
 end
             
 func findavgstimart(chan%,avgart[],prepadmillisec, dplength%, timart)    

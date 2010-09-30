@@ -15,6 +15,7 @@ var stimpostpadpip;                                             'set post stimul
 var piprmppre;
 var startt, endt;                                               'for designating the portion of time to run over.
 var chanlist%[20];
+var havestimchan%;
 
 'SET CONTANSTS
 piprmppre:= 0.2; 'time before current pulse that starts rmp average
@@ -33,10 +34,12 @@ CursorDelete(-1);           'Delete all cursors.
 CursorNew();                'Create new cursor in middle of view.
 CursorNew();                'Create new cursor in middle of view.
 Interact("DRAG THE TWO CURSORS TO DELIMIT YOUR TIME????? THEN PRESS THE TINY OKAY BUTTON!!!!!", 2);
+havestimchan% := Input("Do you have a good stiumulus marker?", 1);
 startt := Cursor(1);
 endt := Cursor(2);
-enstimchan%:= Input("What channel\n is enstim command volt?", 7);
-
+if (havestimchan%) then
+    enstimchan%:= Input("What channel\n is enstim command volt?", 7);
+endif;
 
 'FOR EACH CHAN make slope mem chan, count events, 
 howmanychan := Input("how many channels?", 4);
@@ -48,7 +51,7 @@ Proc FillBigArray(n%)
 var enthresh, spktmstmp, spkvltstmp, rmptmp, slopchantmp%, eventchantmpstart%, eventchantmpend%, tmpthresh;
 var slopeorno%;
     for i% := 1 to n%-2 do
-        if (i% = 1) then
+        if (havestimchan% and i% = 1) then
             whichchantmp% := enstimchan%;
             whichchan%[i%] := enstimchan%;
             slopchantmp% := whichchantmp%;
@@ -56,6 +59,8 @@ var slopeorno%;
             eventchantmpend% := findstimulusend(whichchantmp%);
             ChanData(eventchantmpstart%,bigarray[0][],startt, endt);
             ChanData(eventchantmpend%,bigarray[1][],startt, endt);
+        else i% := i% +1;
+        endif;
         else
             itermessage$   := Print$("%s", "tell me the next channel");
             whichchantmp%   := Input(itermessage$,i%-1);
@@ -65,12 +70,14 @@ var slopeorno%;
                 eventchantmpstart% := findspksslp(whichchantmp%);
             else
                 eventchantmpstart% := findspkthrsh(whichchantmp%);
-            endif
-            for j% := 0 to len(bigarray[0][])-1 do
-                MemDeleteTime(eventchantmpstart%, 3, (bigarray[0][j%]-0.005), (bigarray[1][j%]+0.005));
-            next
+            endif;
+            if (havestimchan%) then
+                for j% := 0 to len(bigarray[0][])-1 do
+                    MemDeleteTime(eventchantmpstart%, 3, (bigarray[0][j%]-0.005), (bigarray[1][j%]+0.005));
+                next
+            endif;
             ChanData(eventchantmpstart%,bigarray[i%+1][],startt, endt);
-        endif
+        endif;
         whichchan%[0] :=  whichchan%[0] + 1;
         ChanHide(-1); ChanShow(whichchantmp%); ChanShow(eventchantmpstart%);
         Interact("how does this look?",2);

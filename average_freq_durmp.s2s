@@ -1,6 +1,6 @@
 'want to count number of spikes during protraction and retraction
 var numchans%, chansarry%[10], viewsarry%[10], whchchantmp%, avgfreqtmp, latencytmp, peakfreqtmp;
-var prostartchan%, proendchan%, reendchan%;
+var prostartchan%, proendchan%, reendchan%,enstimchan%;
 var psholder, peholder, reholder;
 var tmpmp[3];
 var i%, j%;
@@ -22,6 +22,7 @@ prostartchan%:= Input("What channel\n is protraction start mark?", 401);
 proendchan% := Input("What channel\n is protraction end mark?", 402);
 reendchan% := Input("What channel\n is retraction end mark?", 403);
 numchans% := Input("how many event channels?", 4);
+enstimchan% := Input("which chane is nrvstmi events?", 13);
 
 'NEW FILES / CELL CHANNELS / ONE FILE PER CELL
 var fname$, rdirstring$;
@@ -46,6 +47,11 @@ for i% := 1 to numchans% do
     DrawAll();
 next
 
+'MAKE ENSTIMBLOCKS WITH BURSTMAKE
+var outburstchan%, enblockstarts;
+outburstchan% := makeenstimblocks(enstimchan%);
+MarkMask(outburstchan%, 0, 0, 1); 'excludes stimblock endings from the outburstchan, leaving only starts 
+
 'LOOP THRU EVENTS ON PROTRACTION START CHANNEL
 for i% := 1 to MemGetItem(prostartchan%) do
     filltmpmp();
@@ -63,8 +69,11 @@ for j% := 1 to numchans% do
     FilePathSet(rdirstring$); FileSaveAs(outchanname$,1); FileClose();
 next
 
-ChanSave(prostartchan%,0); ChanSave(proendchan%,0); ChanSave(reendchan%,0);
-
+'
+'
+'
+'FUNCTIONS/PROCS BELOW
+'FILLS VECTOR WITH NEXT MOTOR PROGRAM TIMES
 proc filltmpmp()
     tmpmp[0] := MemGetItem(prostartchan%, psholder);
     tmpmp[1] := MemGetItem(proendchan%, peholder);
@@ -74,15 +83,27 @@ proc filltmpmp()
     reholder := reholder + 1;
 end
 
+'MAKE ENSTIMBURSTS
+func makeenstimblocks(enstimvntchan%)
+    var burstchan%, maxisi, minnumstims;
+    maxisi := 1; 'the maximum allowable inter stimulus interval in seconds allowed in a single block of en stim
+    minnumstims := 30; 'min number of events to be considered a burst
+    burstchan% := MemChan(5);
+    BurstMake(burstchan%, enstimvntchan%, 0, MaxTime(), maxisi, maxisi, minnumstims);
+    return burstchan%
+end
+
 'PRINTS TO CSV EVENT INFORMATION IN A SINGLE MOTOR PROGRAM (TMPMP[PROSTART, PROEND, REEND])
 'FORM IS:
 'pro_start, proend, reend, avg_freq_pro, lat_fspk_pro, avg_freq_re, lat_fspk_re, num_spks_pr, \
 '... time_each_spk_pro, num_spks_re, time_each_spk_re
 'If there are no spikes in pro or retract, the latency is a blank cell, and the time_each_spk is one blank cell
-
 func printavglatpeakarry(chan%,vh%) 
-    var proavg, prolat, reavg, relat, pspksarry[4000], rspksarry[4000], numpspks%, numrspks%;
-    proavg := ChanMeasure(chan%, 2, tmpmp[0], tmpmp[1]);'chan measure option 2 is mean   
+    var proavg, prolat, reavg, relat, pspksarry[4000], rspksarry[4000], numpspks%, numrspks%, normpros, normproe, normre;
+    normpros := tmpmp[0] - LastTime(outburstchan%,tmpmp[0]);
+    normproe := tmpmp[1] - LastTime(outburstchan%,tmpmp[1]);
+    normre := tmpmp[2] - LastTime(outburstchan%, tmpmp[2]);
+    proavg := ChanMeasure(chan%, 2, tmpmp[0], tmpmp[1]); 'chan measure option 2 is mean   
     prolat := NextTime(chan%, tmpmp[0]);  
     if (prolat>tmpmp[1]) then
         prolat := 0; 
@@ -95,13 +116,17 @@ func printavglatpeakarry(chan%,vh%)
     numpspks% := ChanData(chan%,pspksarry[],tmpmp[0],tmpmp[1]);
     numrspks% := ChanData(chan%,rspksarry[],tmpmp[1],tmpmp[2]);
     if(numpspks%) then 
-        resize pspksarry[numpspks%]; endif
+        resize pspksarry[numpspks%]; 
+        ArrSub(pspksarry[],tmpmp[0]); 
+    endif
     if(numrspks%) then 
-        resize rspksarry[numrspks%]; endif
+        resize rspksarry[numrspks%]; 
+        ArrSub(rspksarry[],tmpmp[0]);
+    endif
     View(vh%);
-    Print("%.4f,",tmpmp[0]);
-    Print("%.4f,",tmpmp[1]);
-    Print("%.4f,",tmpmp[2]);
+    Print("%.4f,",normpros);
+    Print("%.4f,",normproe);
+    Print("%.4f,",normre);
     Print("%.4f,",proavg);
     if (prolat<0.0001) then
         Print(",");
@@ -114,13 +139,13 @@ func printavglatpeakarry(chan%,vh%)
     else
         Print("%.4f,",relat);
     endif
-    Print("%g,",numpspks%);
+    Print("%g%%,",numpspks%);
     if(numpspks%) then 
         Print("%.4f,",pspksarry);
     else 
         Print(",");
     endif
-    Print("%g,",numrspks%);
+    Print("%g%%,",numrspks%);
     if(numrspks%) then 
         Print("%.4f,",rspksarry);
     else 
