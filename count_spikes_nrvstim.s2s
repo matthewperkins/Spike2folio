@@ -5,7 +5,7 @@
 'the array that holds the spike times should hold only this zero crossing time.
 
 var enstimchan%, enstimtimes, enstimVs1, i2, bn2, rn;
-var howmanychan, whichchan%[10],outchan%[10];
+var howmanychan%, whichchan%[10],outchan%[10];
 var pip1[2000],    pip2[2000],    pip3[2000],    pip4[2000];    'use to hold spiketimes
 var pip1sV[2000],  pip2sV[2000],  pip3sV[2000],  pip4sV[2000];  'use to hold spikevoltages
 var pip1rmp[2000], pip2rmp[2000], pip3rmp[2000], pip4rmp[2000]; 'use to hold rmps
@@ -34,7 +34,7 @@ CursorDelete(-1);           'Delete all cursors.
 CursorNew();                'Create new cursor in middle of view.
 CursorNew();                'Create new cursor in middle of view.
 Interact("DRAG THE TWO CURSORS TO DELIMIT YOUR TIME????? THEN PRESS THE TINY OKAY BUTTON!!!!!", 2);
-havestimchan% := Input("Do you have a good stiumulus marker?", 1);
+havestimchan% := Input("Do you want to delete spikes near your stimulus?", 1);
 startt := Cursor(1);
 endt := Cursor(2);
 if (havestimchan%) then
@@ -42,15 +42,16 @@ if (havestimchan%) then
 endif;
 
 'FOR EACH CHAN make slope mem chan, count events, 
-howmanychan := Input("how many channels?", 4);
-FillBigArray(howmanychan+3);
+howmanychan% := Input("how many channels?", 4);
+FillBigArray(howmanychan%+2);
 
 Proc FillBigArray(n%)
     var bigarray[n%][20000];
     var itermessage$, i%, whichchantmp%,j%;
-var enthresh, spktmstmp, spkvltstmp, rmptmp, slopchantmp%, eventchantmpstart%, eventchantmpend%, tmpthresh;
-var slopeorno%;
-    for i% := 1 to n%-2 do
+    var enthresh, spktmstmp, spkvltstmp, rmptmp, slopchantmp%, eventchantmpstart%, eventchantmpend%, tmpthresh;
+    var slopeorno%, variablecount%:=0;
+    if (not(havestimchan%)) then variablecount% := 1; endif;
+        for i% := 1 to howmanychan% do
         if (havestimchan% and i% = 1) then
             whichchantmp% := enstimchan%;
             whichchan%[i%] := enstimchan%;
@@ -59,25 +60,22 @@ var slopeorno%;
             eventchantmpend% := findstimulusend(whichchantmp%);
             ChanData(eventchantmpstart%,bigarray[0][],startt, endt);
             ChanData(eventchantmpend%,bigarray[1][],startt, endt);
-        else i% := i% +1;
         endif;
+        itermessage$   := Print$("%s", "tell me the next channel");
+        whichchantmp%   := Input(itermessage$,i%-1);
+        whichchan%[i%] := whichchantmp%;
+        slopeorno% := Input("compute spikes from slope? 1 is yes", 1);
+        if (slopeorno%) then
+            eventchantmpstart% := findspksslp(whichchantmp%);
         else
-            itermessage$   := Print$("%s", "tell me the next channel");
-            whichchantmp%   := Input(itermessage$,i%-1);
-            whichchan%[i%] := whichchantmp%;
-            slopeorno% := Input("compute spikes from slope? 1 is yes", 1);
-            if (slopeorno%) then
-                eventchantmpstart% := findspksslp(whichchantmp%);
-            else
-                eventchantmpstart% := findspkthrsh(whichchantmp%);
-            endif;
-            if (havestimchan%) then
-                for j% := 0 to len(bigarray[0][])-1 do
-                    MemDeleteTime(eventchantmpstart%, 3, (bigarray[0][j%]-0.005), (bigarray[1][j%]+0.005));
-                next
-            endif;
-            ChanData(eventchantmpstart%,bigarray[i%+1][],startt, endt);
+            eventchantmpstart% := findspkthrsh(whichchantmp%);
         endif;
+        if (havestimchan%) then
+            for j% := 0 to len(bigarray[0][])-1 do
+                MemDeleteTime(eventchantmpstart%, 3, (bigarray[0][j%]-0.005), (bigarray[1][j%]+0.005));
+            next
+        endif;
+        ChanData(eventchantmpstart%,bigarray[i%+1][],startt, endt);
         whichchan%[0] :=  whichchan%[0] + 1;
         ChanHide(-1); ChanShow(whichchantmp%); ChanShow(eventchantmpstart%);
         Interact("how does this look?",2);
