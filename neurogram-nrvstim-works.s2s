@@ -17,6 +17,7 @@ var ishalrunning%;
 var probursts%, prostarts%, proends%, reends%;
 var prostartcurs%, proendcurs%, reendcurs%;
 var i2chan%, i2evnts%, bn2chan%, bn2evnts%;
+var k%;
 
     
 
@@ -50,17 +51,18 @@ if (ishandmarked%) then
     prostartcurs% := CursorNew(); proendcurs% := CursorNew(); reendcurs% := CursorNew();
     CursorLabel(4, prostartcurs%,"prostartcur"); CursorLabel(4,proendcurs%,"proendcur");
     CursorLabel(4, reendcurs%,"reendcur");
+    CursorLabelPos(prostartcurs%,50); CursorLabelPos(proendcurs%,50); CursorLabelPos(reendcurs%,50);
     
     ToolbarClear();
-    ToolbarSet(9,"&F frwd||jump forward one view width", forwarddraw%);
-    ToolbarSet(8,"&R rvsr||jump backward one view width", backwarddraw%);
-    ToolBarSet(7,"&E addpS||Add a protraction start at Cursor", addprostart%);
-    ToolBarSet(6,"&U addpE||Add a pro END at Cursor", addproend%);
-    ToolBarSet(5,"&I delpS||Delete last prostart before prostart cursor", delprostart%);
-    ToolBarSet(4,"&D delpE||Delete the pro end before proend cursor", delproend%);
-    ToolBarSet(3,"&J addrE||Add a RETRACT END at Cursor", addreend%);
-    ToolBarSet(2,"&K delrE||Delete last RETRACT END before reend cursor", delreend%);
-    ToolBarSet(1,"&L save||save eventchannels and leave",outie%);
+    ToolbarSet(9,"&f frwd||jump forward one view width", forwarddraw%);
+    ToolbarSet(8,"&r rvsr||jump backward one view width", backwarddraw%);
+    ToolBarSet(7,"&e addpS||Add a protraction start at Cursor", addprostart%);
+    ToolBarSet(6,"&u addpE||Add a pro END at Cursor", addproend%);
+    ToolBarSet(5,"&i delpS||Delete last prostart before prostart cursor", delprostart%);
+    ToolBarSet(4,"&d delpE||Delete the pro end before proend cursor", delproend%);
+    ToolBarSet(3,"&j addrE||Add a RETRACT END at Cursor", addreend%);
+    ToolBarSet(2,"&k delrE||Delete last RETRACT END before reend cursor", delreend%);
+    ToolBarSet(1,"&l save||save eventchannels and leave",outie%);
     ToolbarEnable(1,1);
     Toolbar("",1);
     prostarts% := ChanSave(prostarts%,0);
@@ -274,17 +276,19 @@ return(1);
 end
 
 func delprostart%()
-    var cur1;
+    var cur1; var numitems%;
     cur1 := Cursor(prostartcurs%);
-    MemDeleteItem(prostarts%,0,cur1);
+    numitems% := MemGetItem(prostarts%);
+    MemDeleteItem(prostarts%,numitems%);
     Draw();
 return(1);
 end
 
 func delproend%()
-    var cur1;
+    var cur1; var numitems%;
     cur1 := Cursor(proendcurs%);
-    MemDeleteItem(proends%,0,cur1);
+    numitems% := MemGetItem(proends%);
+    MemDeleteItem(proends%,numitems%);
     Draw();
 return(1);
 end
@@ -298,9 +302,10 @@ return(1);
 end
  
 func delreend%()
-    var cur1;
+    var cur1; var numitems%;
     cur1 := Cursor(reendcurs%);
-    MemSetItem(reends%,0,cur1);
+    numitems% := MemGetItem(reends%);
+    MemDeleteItem(reends%,numitems%);
     Draw();
 return(1);
 end
