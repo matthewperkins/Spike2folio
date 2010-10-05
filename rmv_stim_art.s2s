@@ -42,11 +42,9 @@ timstimart := (dpavgisi%*0.99/smplrate);
 
 'SET PADDINGS
 var leftpadmillisec, prepad, postpad, cellavgdurprcnt;
-prepad := 3; 
+prepad := 1; 
 postpad := 3;
-leftpadmillisec := 10;
-cellavgdurprcnt := 0.1; 'as percent (of avg stim isi)
-cellavgdurprcnt := cellavgdurprcnt*avgisi;  'percnts now seconds
+leftpadmillisec := 5;
 
 'FIND THE AVERAGE PERI STIMULUS WAVE FORM, SET LEFT PAD
 var j%, outchan%, whichchan%, iscell%;
@@ -57,26 +55,29 @@ for j% := 1 to howmany% do
     findavgstimart(whichchan%,avgdart[],leftpadmillisec,dpstimart%,timstimart);
     tlen% := avgdart[0];
     PrintLog(avgdart[1:tlen%]);
-    outchan% := substract(whichchan%,avgdart[1:tlen%],leftpadmillisec,dpstimart%,timstimart, iscell%, cellavgdurprcnt);
-    zeroout(outchan%,prepad,postpad,avgstimdur,iscell%, cellavgdurprcnt, avgisi);
+    outchan% := substract(whichchan%,avgdart[1:tlen%],leftpadmillisec,dpstimart%,timstimart, iscell%);
+    if (not(iscell%)) then 
+        zeroout(outchan%,prepad,postpad,avgstimdur,iscell%, cellavgdurprcnt, avgisi);
+    endif;
 next
 
 'FUNCTIONS ARE DEFINED BELOW:
-func substract(chan%,avgstimart[], prepadmillisec, dplength%,timart, iscll%, cellavgdur) 'give the time over which to avg the cell mem as prcnt(of avgisi)
+func substract(chan%,avgstimart[], prepadmillisec, dplength%,timart, iscll%) 'give the time over which to avg the cell mem as prcnt(of avgisi)
     var dupchan%;
     dupchan% := MemChan(0,chan%);
     MemImport(dupchan%,chan%,0,MaxTime(chan%));
 
     var i%, count%;
-    var tmp[dplength%], prestimavg, thistmplength%, avgrmp := 0;
+    var tmp[dplength%], prestimavg, thistmplength%, avgrmp := 0, bumprmp;
     count% := 0;
     for i% := 1 to stims[0]-1 do
-    thistmplength% := ChanData(chan%,tmp[],stims[i%],stims[i%+1]);
-'    if (iscll%) then
-'       avgrmp := ChanMeasure(chan%,2,stims[i%+1]-cellavgdur, stims[i%+1]);
-'    endif;
+    thistmplength% := ChanData(chan%,tmp[],stims[i%]-(prepadmillisec/1000),stims[i%+1]-(prepadmillisec/1000));
     ArrSub(tmp[],avgstimart[]);
-    ArrSub(tmp[],avgrmp);
+    if (iscll%) then
+        avgrmp := ChanValue(chan%, stims[i%]-(prepadmillisec/1000)+(dplength%/smplrate));
+        bumprmp := tmp[dplength%-1]-avgrmp;
+        ArrSub(tmp[],bumprmp);
+    endif;
     ChanWriteWave(dupchan%,tmp[],stims[i%]-(prepadmillisec/1000));
     next;
     return dupchan%
@@ -88,12 +89,7 @@ proc zeroout(chan%, prestartmilli, postendmilli, avgdur, iscll%, cellavgdur, avg
     postlen% := Ceil((avgdur*smplrate)+(postendmilli/1000)*smplrate);
     var prearr[prelen%], postarr[postlen%];
     for i% := 1 to stims[0]-1 do
-    ontmp := MemGetItem(stimeventstart%, i%);
-'        if (iscell%) then
-'            avgrmp:= ChanMeasure(chan%,1, ontmp-(prestartmilli/1000)-(avgisi*cellavgdur),ontmp-(prestartmilli/1000));
-'            ArrConst(prearr[],avgrmp);
-'            ArrConst(postarr[],avgrmp);
-'        endif;
+        ontmp := MemGetItem(stimeventstart%, i%);
         ChanWriteWave(chan%, prearr[], ontmp-(prestartmilli/1000));
         ChanWriteWave(chan%, postarr[], ontmp-0.001);
     next
