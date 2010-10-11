@@ -30,7 +30,8 @@ fname$ := Print$("%s%s",FileName$(3),FileName$(4));
 rdirstring$ := Print$("%s\%s",FileName$(2),fname$);
 
 for i% := 1 to numchans% do
-    View(viewtemp%);    
+    View(viewtemp%);
+    FrontView(viewtemp%);
     DrawAll();
     chansarry%[i%-1] := Input(Print$("%g st channel",i%), 1);
     viewsarry%[i%-1] := FileNew(1);
@@ -98,7 +99,8 @@ end
 'pro_start, proend, reend, avg_freq_pro, lat_fspk_pro, avg_freq_re, lat_fspk_re, num_spks_pr, \
 '... time_each_spk_pro, num_spks_re, time_each_spk_re
 'If there are no spikes in pro or retract, the latency is a blank cell, and the time_each_spk is one blank cell
-func printavglatpeakarry(chan%,vh%) 
+func printavglatpeakarry(chan%,vh%)
+    var divnumpsks, divnumrspks;
     var proavg, prolat, reavg, relat, pspksarry[4000], rspksarry[4000], numpspks%, numrspks%, normpros, normproe, normre;
     normpros := tmpmp[0] - LastTime(outburstchan%,tmpmp[0]);
     normproe := tmpmp[1] - LastTime(outburstchan%,tmpmp[1]);
@@ -115,9 +117,13 @@ func printavglatpeakarry(chan%,vh%)
     else relat := relat - tmpmp[1]; endif
     numpspks% := ChanData(chan%,pspksarry[],tmpmp[0],tmpmp[1]);
     numrspks% := ChanData(chan%,rspksarry[],tmpmp[1],tmpmp[2]);
+    divnumpsks := numpspks%; divnumrspks := numrspks%;
+    proavg := divnumpsks / (normproe - normpros);
+    reavg := divnumrspks / (normre - normproe);
     if(numpspks%) then 
         resize pspksarry[numpspks%]; 
-        ArrSub(pspksarry[],tmpmp[0]); 
+        ArrSub(pspksarry[],tmpmp[0]);
+       
     endif
     if(numrspks%) then 
         resize rspksarry[numrspks%]; 
