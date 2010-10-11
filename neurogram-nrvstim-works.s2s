@@ -36,10 +36,13 @@ CursorNew();                'Create new cursor in middle of view.
 Interact("DRAG THE TWO CURSORS TO DELIMIT YOUR TIME????? THEN PRESS THE TINY OKAY BUTTON!!!!!", 2);
     startt := Cursor(1);
 endt := Cursor(2);
-enstimchan%:= Input("What channel\n is enstim command volt?", 7);
+enstimchan%:= Input("What channel\n is enstim command volt?\n Give ZERO for no command volt", 11);
 
-ishandmarked% := Input("Do you want to\n hand mark mps?", 0);
-if (ishandmarked%) then
+'SELECT WHICH CASE TO PERFORM
+var caseslct%;
+caseslct% := Input("Enter (1) - handmark mps?", 1);
+docase
+    case(caseslct%=1) then
     profeaturechan% := Input("Chan for PROTRACTION features",8);
     refeaturechan% := Input("Chan for RETRACTION features",9);
     ChanHide(-1);
@@ -68,10 +71,8 @@ if (ishandmarked%) then
     prostarts% := ChanSave(prostarts%,0);
     proends% := ChanSave(proends%,0);
     reends% := ChanSave(reends%,0);
-endif
-
-isretracthandmarked% := Input("Do you want to\n hard mark\n only RETRACTION END?", 0);
-if (isretracthandmarked%) then
+    
+    case(caseslct%=2) then
     refeaturechan% := Input("Chan for RETRACTION features",9);
     ChanHide(-1);
     ChanShow(refeaturechan%);
@@ -96,10 +97,8 @@ if (isretracthandmarked%) then
     prostarts% := ChanSave(prostarts%,0);
     proends% := ChanSave(proends%,0);
     reends% := ChanSave(reends%,0);
-endif
 
-ishalrunning% := Input("Do you want to\n HAL to run your ish?", 1);
-if (ishalrunning%) then
+    case(caseslct%=3) then
     i2chan%:= Input("What channel\n is i2nerve?", 8);
     bn2chan%:= Input("What channel\n is buccal nerve 2?", 5);
     i2evnts% := motornerveburst(i2chan%,enstimchan%);
@@ -110,15 +109,12 @@ if (ishalrunning%) then
     prostarts% := ChanSave(prostarts%,0);
     proends% := ChanSave(proends%,0);
     bn2evnts% := motornerveburst(bn2chan%,enstimchan%);
-endif
+endcase
 
 'protractstart% := Input("Which chan is\n protraction start marks?",0);
 'protractend% := Input("Which chan is\n ... END marks?",0);
-
-
-
-    
 'for filling arry with Motor Program Metrics    
+
 proc getformmarks(outmps[][], pstartmarkchan%, pendmarkchan%, rstartmarkchan%, rendmarkchan%)
     var j%,pstarttmp, pendtmp, rstarttmp, rendtmp;
     for j% := 0 to MemGetItem(pstartmarkchan%,0) do
