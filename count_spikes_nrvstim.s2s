@@ -34,34 +34,67 @@ CursorDelete(-1);           'Delete all cursors.
 CursorNew();                'Create new cursor in middle of view.
 CursorNew();                'Create new cursor in middle of view.
 Interact("DRAG THE TWO CURSORS TO DELIMIT YOUR TIME????? THEN PRESS THE TINY OKAY BUTTON!!!!!", 2);
+havestimchan% := Input("Do you want to delete spikes near your stimulus?", 1);
 startt := Cursor(1);
 endt := Cursor(2);
+if (havestimchan%) then
+    enstimchan%:= Input("What channel\n is enstim command volt?", 7);
+endif;
 
 'FOR EACH CHAN make slope mem chan, count events, 
 howmanychan% := Input("how many channels?", 4);
 FillBigArray(howmanychan%+2);
+var eventchantmpstart%, spksokay% := 1;
 
 Proc FillBigArray(n%)
     var bigarray[n%][20000];
     var itermessage$, i%, whichchantmp%,j%;
-    var enthresh, spktmstmp, spkvltstmp, rmptmp;
-    var slopchantmp%, eventchantmpstart%, eventchantmpend%, tmpthresh;
-    var slopeorno%, variablecount%:=0, spksokay% := 1;
+    var enthresh, spktmstmp, spkvltstmp, rmptmp, slopchantmp%, eventchantmpend%, tmpthresh;
+    var slopeorno%, variablecount%:=0,  tau;
     for i% := 1 to howmanychan% do
+        if (havestimchan% and i% = 1) then
+            whichchantmp% := enstimchan%;
+            whichchan%[i%] := enstimchan%;
+            slopchantmp% := whichchantmp%;
+            eventchantmpstart% := findstimulusstart(whichchantmp%);
+            eventchantmpend% := findstimulusend(whichchantmp%);
+            ChanData(eventchantmpstart%,bigarray[0][],startt, endt);
+            ChanData(eventchantmpend%,bigarray[1][],startt, endt);
+        endif;
         itermessage$   := Print$("%s", "tell me the next channel");
         whichchantmp%   := Input(itermessage$,i%-1);
         whichchan%[i%] := whichchantmp%;
-        slopeorno% := Input("compute spikes from slope? 1 is yes", 1);
-        while (spksokay%) do 
-            if (slopeorno%) then
-                eventchantmpstart% := findspksslp(whichchantmp%);
-            else
-                eventchantmpstart% := findspkthrsh(whichchantmp%);
+        while (spksokay%) do
+            slopeorno% := Input("compute spikes by peak(1), slope(2), or threshold crossing(3)?", 1);
+            docase
+                case (slopeorno%=1) then
+                    tau := Input("give a tau in millisec \n(approx 2 x the spike dur works well)\n e.g. for b8, 8-10(ms)\n for b4/5 3ms", 3);
+                    eventchantmpstart% := findspkpeak(whichchantmp%, tau);
+                case (slopeorno%=2) then
+                    tau := Input("give a tau in millisec \n(approx 2 x the spike dur works well)\n e.g. for b8, 8-10(ms)\n for b4/5 3ms", 3);
+                    eventchantmpstart% := findspksslp(whichchantmp%, tau);
+                case (slopeorno%=3) then
+                    eventchantmpstart% := findspkthrsh(whichchantmp%);
+            endcase
+            if (havestimchan%) then
+                for j% := 0 to len(bigarray[0][])-1 do
+                    MemDeleteTime(eventchantmpstart%, 3, (bigarray[0][j%]-0.002), (bigarray[1][j%]+0.002));
+                next
             endif;
             ChanData(eventchantmpstart%,bigarray[i%+1][],startt, endt);
             whichchan%[0] :=  whichchan%[0] + 1;
             ChanHide(-1); ChanShow(whichchantmp%); ChanShow(eventchantmpstart%);
-            spksokay% := Interact("how does this look?",2,0,"&Y Good||accept the spike theresh and move on","&N Bad||reject spike thresh, and try again");
+            spksokay% := Interact("how does this look?",2,0,"&Y Good||accept the spike theresh and move on to edit individual events","&N Bad||reject spike thresh, and try again");
+            if (spksokay%=1) then
+                makeeventcursors(3);
+                ToolbarSet(6,"&A add||add a spikes at add cursor", addspk%);
+                ToolbarSet(5,"&E delone||del spk nearest del cursor1", delonespk%);
+                ToolbarSet(4,"&U delbtwn||del all spks btwn two del cursors", delspksbtw%);
+                ToolbarSet(3,"&P oops||restart spike detection", oops%);
+                ToolbarSet(2,"$&Q quit", outie%);
+                ToolbarEnable(1,1);
+                Toolbar("",1);
+            endif;
             if (spksokay%=1) then break endif;
             ChanDelete(eventchantmpstart%);
         wend;
@@ -74,6 +107,46 @@ Proc FillBigArray(n%)
     PrintLog(bigarray);
     ChanHide(-1);
     ChanShow(outchan%);
+end
+
+'Spike editing toolbar functions
+func addspk%()
+    MemSetItem(eventchantmpstart%,0, Cursor(1));
+return(1);
+end
+
+func delonespk%()
+    MemDeleteTime(eventchantmpstart%,0,Cursor(2),5);
+    Draw();
+return(1);
+end
+
+func delspksbtw%()
+    MemDeleteTime(eventchantmpstart%,3,Cursor(2),Cursor(3));
+    Draw();
+return(1);
+end
+
+func oops%()
+spksokay% := 2;
+return(0);
+end
+
+func outie%()
+return(0);
+end
+
+Proc makeeventcursors(n%)
+    var i%, range := XHigh()-XLow();
+    var divi, divn := n%;
+    CursorDelete(-1);
+    for i% := 1 to n% do
+        divi := i%;
+        CursorNew(XLow()+(range*0.8*(divi/divn)));
+    next
+    CursorLabel(4, 1, "add"); CursorLabelPos(1,50);
+    CursorLabel(4,2,"delete1"); CursorLabelPos(2,50);
+    CursorLabel(4,3,"delete2"); CursorLabelPos(3,50);
 end
 
 
@@ -105,12 +178,29 @@ func findsixsigma(n%)
     return thresh;
 end
 
-func findspksslp(n%)
+func findspkpeak(n%, millitau)
+    var eventchantmp%, tmpthresh;
+    var sectau := millitau/1000;
+    var append$ := "spk";
+    ChanHide(-1); ChanShow(n%);
+    HCursorDelete(-1);
+    HCursorNew(n%); HCursorNew(n%);
+    Interact("move cursors",2);
+    HCursorRenumber();
+    tmpthresh := HCursor(2) - HCursor(1);
+    eventchantmp% := MemChan(2);
+    MemImport(eventchantmp%, n%, startt, endt, 0, sectau, tmpthresh);
+    setchantitle(n%, eventchantmp%, append$);
+    return eventchantmp%;
+end
+
+func findspksslp(n%, millitau)
     var slopchantmp%, eventchantmp%, tmpthresh;
     var append$ := "spk";
+    var sectau := millitau/1000;
     slopchantmp% := MemChan(0,n%);
     MemImport(slopchantmp%, n%, startt, endt);
-    ChanProcessAdd((slopchantmp%),3,0.0006); 'add a slope channel process 3, time contant for slope calculation is sampling interval about.  
+    ChanProcessAdd((slopchantmp%),3, sectau); 'add a slope channel process 3, time contant for slope calculation is sampling interval about.  
     DrawMode(slopchantmp%,0);
     HCursorDelete(-1);
     HCursorNew(slopchantmp%); HCursorNew(slopchantmp%);
@@ -132,12 +222,11 @@ func findspkthrsh(n%)
     var append$ := "spk";
     ChanHide(-1); ChanShow(n%);
     HCursorDelete(-1);
-    HCursorNew(n%); HCursorNew(n%);
-    Interact("move cursors",2);
-    HCursorRenumber();
-    tmpthresh := HCursor(2) - HCursor(1);
+    HCursorNew(n%);
+    Interact("move cursor",2);
+    tmpthresh := HCursor(1);
     eventchantmp% := MemChan(2);
-    MemImport(eventchantmp%, n%, startt, endt, 0, 0.0001, tmpthresh);
+    MemImport(eventchantmp%, n%, startt, endt, 2, 0.002, tmpthresh);
     setchantitle(n%, eventchantmp%, append$);
     return eventchantmp%;
 end
