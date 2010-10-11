@@ -86,7 +86,9 @@ Proc FillBigArray(n%)
             ChanHide(-1); ChanShow(whichchantmp%); ChanShow(eventchantmpstart%);
             spksokay% := Interact("how does this look?",2,0,"&Y Good||accept the spike theresh and move on to edit individual events","&N Bad||reject spike thresh, and try again");
             if (spksokay%=1) then
-                makeeventcursors(3);
+            makeeventcursors(3);
+                ToolbarSet(8,"&F Forward||Jump view and cursors forward", forwarddraw%);
+                ToolbarSet(7,"&R Backward||Jump view and cursors backward", backwarddraw%);
                 ToolbarSet(6,"&A add||add a spikes at add cursor", addspk%);
                 ToolbarSet(5,"&E delone||del spk nearest del cursor1", delonespk%);
                 ToolbarSet(4,"&U delbtwn||del all spks btwn two del cursors", delspksbtw%);
@@ -135,6 +137,26 @@ end
 func outie%()
 return(0);
 end
+
+func forwarddraw%()
+var ttmp, rngtmp;
+    rngtmp := XHigh()-XLow();
+    ttmp := XLow() + rngtmp*0.75;
+    Cursor(1,(ttmp+rngtmp*0.2));Cursor(2,(ttmp+rngtmp*0.4));Cursor(3,(ttmp+rngtmp*0.6));
+    Draw(ttmp);
+return(1);
+end
+
+func backwarddraw%()
+var ttmp, rngtmp;
+    rngtmp := XHigh()-XLow();
+    ttmp := XLow() - rngtmp*0.75;
+    Cursor(1,(ttmp+rngtmp*0.2));Cursor(2,(ttmp+rngtmp*0.4));Cursor(3,(ttmp+rngtmp*0.6));
+    Draw(ttmp);
+return(1);
+end
+
+'End toolbar functions
 
 Proc makeeventcursors(n%)
     var i%, range := XHigh()-XLow();
