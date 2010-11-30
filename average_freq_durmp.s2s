@@ -139,12 +139,10 @@ func printavglatpeakarry(chan%,vh%)
     normpros := tmpmp[0] - LastTime(outburstchan%,tmpmp[0]);
     normproe := tmpmp[1] - LastTime(outburstchan%,tmpmp[1]);
     normre := tmpmp[2] - LastTime(outburstchan%, tmpmp[2]);
-    proavg := ChanMeasure(chan%, 2, tmpmp[0], tmpmp[1]); 'chan measure option 2 is mean   
     prolat := NextTime(chan%, tmpmp[0]);  
     if (prolat>tmpmp[1]) then
         prolat := 0; 
     else prolat := prolat - tmpmp[0]; endif
-    reavg := ChanMeasure(chan%, 2, tmpmp[1], tmpmp[2]);  
     relat := NextTime(chan%, tmpmp[1]);
     if (relat>tmpmp[2]) then
         relat := 0; 
