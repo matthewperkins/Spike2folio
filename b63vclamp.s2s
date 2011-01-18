@@ -1,0 +1,254 @@
+'SCRIPT TO measure current in a voltage clamp experiment.
+'MUST have a designated channel as a current moniter, for each cell.
+
+var rwcnt%;
+var start, iend, vt%;
+var rsltsarr[20][225000], rlstmean[225000];
+var thresh, seqstart, seqend;
+var numspks%, spklaten, trsharry[200];
+var gotonext%, isokay%;
+var fname$, outcurrentname$, rdirstring$, outcurrentvh%[10],starts%[10],stops%[10],vchan%;
+var stepstart, stepend;
+var stpw1, stpw2, stpw3, avgover, restarttime;
+var isoneelect%;
+var i%,j%;
+
+'these are globals that will set the measurements of the jump current, the steadstate current, and the tail currents
+var prepad := 0.002;
+var holdcurrenttime := 0.020;
+var jumppad := 0.001;
+var jumpcurrenttime := 0.01;
+var endpad := 0.001;
+var sscurrenttime := 0.01;
+var tailpad := 0.001;
+var tailcurrenttime := 0.01;
+var vstprmp, vstpvlts, vstpdelt;
+var holdcurrent, jumpcurrent, sscurrent, tailcurrent;    
+
+'Handle Views
+vt% := View(0);  'Save the current view
+FrontView(vt%);
+View(vt%);         'restore the original view
+DrawAll();
+
+'script consoles as of now
+avgover := 0.2;
+rwcnt% := 0;
+isokay% := 1;
+restarttime := Cursor(0); 'script starts cursor(0)
+'Get File Names Ready
+var howmanychans%, channame$, chanmeastmp%, chanvoltagetmp%, chanspktmp%, howmanysteps%, tau;
+howmanychans% := Input("How many chans have steps?", 2);
+outcurrentvh%[0] := howmanychans%;
+'outcurrMat is only for one channel pleas
+var outcurrMat%;
+starts%[0] := howmanychans%;
+stops%[0] := howmanychans%;
+rdirstring$ := Print$("%s%s",FileName$(1),FileName$(2));
+FilePathSet(rdirstring$);
+rdirstring$ := Print$("%s%s", rdirstring$, "..\\indiv_cells\\B63\\vclamp_measures\\");
+FilePathSet(rdirstring$);
+fname$ := Print$("%s%s",FileName$(3),FileName$(4));
+
+
+'this big ugly loop is main
+for i% := 1 to howmanychans% do
+    Cursor(0, restarttime);
+    gotonext% := 1;
+    chanmeastmp% := Input("Measure which current channel?", i%);
+    chanvoltagetmp% := Input("Which channel is the voltage?", i%);
+    channame$ := leftunblnkchan$(chanmeastmp%);
+    outcurrentname$:= "vclamp.csv";
+    outcurrentname$ := Print$("%s_%s_%s",fname$,channame$,outcurrentname$);
+    howmanysteps% := Input("How many steps?",3);
+    outcurrentvh%[i%] := FileNew(1);
+    outcurrMat% := FileNew(1);
+    View(outcurrentvh%[i%]);
+    for j% := 1 to howmanysteps% do 
+        if (j% = 1) then
+            Print("seqstart,");
+            Print("seqend,");
+        endif
+        Print("%s_%d%s","stpstart",j%,",");
+        Print("%s_%d%s","stpend",j%,",");        
+        Print("%s_%d%s","vstp_rmp",j%,",");
+        Print("%s_%d%s","vstp_step_voltage",j%,",");
+        Print("%s_%d%s","vstp_delta_voltage",j%,",");
+        Print("%s_%d%s","hold_current",j%,",");
+        Print("%s_%d%s","jump_current",j%,",");
+        Print("%s_%d%s","ss_current",j%,",");
+        Print("%s_%d%s","tail_current",j%,",");
+        if (j% = howmanysteps%) then
+            Print("\n");
+        endif
+    next
+    View(vt%);
+    FrontView(vt%);
+    starts%[i%] := MemChan(2);
+    stops%[i%] := MemChan(2);
+  
+    vchan% := makerectslpchan(chanvoltagetmp%);
+    HCursorDelete(-1);
+    HCursorNew(vchan%);
+    ChanShow(vchan%); ChanShow(chanmeastmp%);
+    Optimise(vchan%); Optimise(chanmeastmp%);
+    Draw(Cursor(0),120);
+    FrontView(vt%);
+    Interact("Thresh",2);
+    thresh := HCursor(1);
+    while (gotonext%) do
+        CursorDelete(-1);
+        CursorActive(0, 4, vchan%, 0.01, "", "", thresh);  '8 falling thresh, 7 rising threshold
+        CursorSearch(0);
+        CursorVisible(0,1);
+        seqstart := Cursor(0);
+        CursorNew(seqstart,1);
+        CursorActive(1, 4, vchan%, "Cursor(0)+0.1", "Cursor(0)+30", "Cursor(0)",  thresh);
+        for j% := 1 to (howmanysteps%*2)-1 do
+            CursorActive(1,4,vchan%, "Cursor(1) + 0.1", "Cursor(0) + 30", "Cursor(0)", thresh);
+            CursorSearch(1);
+        next
+        seqend := Cursor(1);
+        XRange(Cursor(0)-35,Cursor(0)+35);
+        isokay% := Input("okay?|", 1);
+        
+        if isokay% then
+            MemSetItem(starts%[i%], 0, Cursor(0));
+            MemSetItem(stops%[i%], 0, Cursor(1));
+                    
+            docase 
+                case(howmanysteps% = 1) then
+                stepstart := seqstart;
+                stepend := seqend;
+                mkmeasurs(chanvoltagetmp%, chanmeastmp%,  chanspktmp%);
+                printmeasurs(outcurrentvh%[i%],1,howmanysteps%);
+                if (isoneelect%) then CursorSearch(0); endif
+                else
+                    CursorActive(1, 4, vchan%, "Cursor(0)+0.1", "Cursor(0)+30", "Cursor(0)", thresh); 'start finding cursor
+                    CursorActive(0, 4, vchan%, 0.1, "", "", thresh);  'end finding cursor
+                    for j% := 1 to howmanysteps% do
+                        docase
+                            case (j%=1) then
+                                stepstart := seqstart;
+                                stepend := CursorSearch(1);
+                                CursorSearch(0);
+                                CursorSearch(0);
+                            case (j%=howmanysteps%) then
+                                stepstart := Cursor(0);
+                                stepend := seqend;
+                                CursorSearch(0);
+                            else
+                                stepstart := Cursor(0);
+                                stepend := CursorSearch(1);
+                                CursorSearch(0);
+                                CursorSearch(0);
+                        endcase
+                        mkmeasurs(chanvoltagetmp%, chanmeastmp%,  chanspktmp%);
+                        printmeasurs(outcurrentvh%[i%],j%, howmanysteps%);
+                    next
+            endcase;
+        endif
+        gotonext% := Input("next?|", 1);
+        if gotonext% then
+                Cursor(0,Cursor(0)+1);
+        endif
+    wend
+    View(vt%);
+    View(outcurrentvh%[i%]); FilePathSet(rdirstring$); FileSaveAs(outcurrentname$,1); FileClose();
+next
+ChanDelete(vchan%);
+ChanDelete(starts%[]);
+ChanDelete(stops%[]);
+'ArrSum(rsltsarr[0:rwcnt%][], rlstmean[]);
+
+proc mkmeasurs(chanvolts%,chancurrent%,chanspks%)
+    vstprmp := ChanMeasure(chanvolts%,2,stepstart-avgover, stepstart);
+    vstpvlts := ChanMeasure(chanvolts%,2,stepend-avgover, stepend);
+    vstpdelt := vstpvlts - vstprmp;
+    holdcurrent := ChanMeasure(chancurrent%,2,stepstart - prepad - holdcurrenttime, stepstart - prepad);
+    jumpcurrent := ChanMeasure(chancurrent%,2,stepstart + jumppad, stepstart + jumppad + jumpcurrenttime);
+    sscurrent := ChanMeasure(chancurrent%,2,stepend - endpad - sscurrenttime, stepend - endpad);
+    tailcurrent := ChanMeasure(chancurrent%,2,stepend + tailpad, stepend + tailpad + tailcurrenttime);
+    if (numspks%) then 
+        spklaten := NextTime(chanspks%, stepstart);
+    else
+        spklaten := -1;
+    endif
+    'search for spikes
+end
+
+proc printmeasurs(outvh%, i%, howmanysteps%)    
+    View(outvh%);
+    if (i% = 1) then
+        Print("%.4f,",seqstart);
+        Print("%.4f,",seqend);
+    endif
+    Print("%.4f,",stepstart);
+    Print("%.4f,",stepend);        
+    Print("%.4f,",vstprmp);
+    Print("%.4f,",vstpvlts);
+    Print("%.4f,",vstpdelt);
+    Print("%.4f,",holdcurrent);
+    Print("%.4f,",jumpcurrent);
+    Print("%.4f,",sscurrent);
+    Print("%.4f,",tailcurrent);
+    if (i% = howmanysteps%) then
+        Print("\n");
+    endif
+    View(vt%);
+end            
+
+'This func deletes the mean of the current moniter channel 
+'(to avoid sign problems with a holding current), then takes the 
+'abs value of the of the demeaned channel so a single threshold cateches 
+'both positive and negative
+func makerectslpchan(chan%)
+    var expr$, vchan%;
+    vchan% := MemChan(0, chan%);
+    MemImport(vchan%, chan%, 0.0, MaxTime()); 'Create channel copy
+    ChanProcessAdd(vchan%,3,0.001);
+    ChanProcessAdd(vchan%,0);
+    return vchan%;
+end
+
+'This func cuts channel title: either cuts last char if it is white
+'or cuts everything after(including) two contiguous whites.
+func leftunblnkchan$(chan%)
+    var chntit$, titlen%;
+    chntit$ := ChanTitle$(chan%);
+    titlen% := Len(chntit$);
+    docase
+        case (Instr(chntit$, "  ")) then
+            titlen% := InStr(chntit$, "  ");
+            chntit$ := Left$(chntit$, (titlen%-1));
+        case (InStr(chntit$, " ") = (titlen%-1)) then
+            chntit$ := Left$(chntit$, (titlen%-1));
+        endcase
+    return chntit$;
+end
+
+'This function finds the spikes from the channel of interest, letting
+'user select thresholds with a cursor.
+func findspkpeak(n%, millitau)
+    var eventchantmp%, tmpthresh;
+    var sectau := millitau/1000;
+    var append$ := "spk";
+    ChanHide(-1); ChanShow(n%);
+    HCursorDelete(-1);
+    HCursorNew(n%); HCursorNew(n%);
+    Interact("move cursors",2);
+    HCursorRenumber();
+    tmpthresh := HCursor(2) - HCursor(1);
+    eventchantmp% := MemChan(2);
+    MemImport(eventchantmp%, n%, 0, MaxTime(n%), 0, sectau, tmpthresh);
+    setchantitle(n%, eventchantmp%, append$);
+    return eventchantmp%;
+end
+
+'sets chan title
+proc setchantitle(inchan%, outchan%, appendstring$)
+    var tmpchantit$;
+    tmpchantit$ := ChanTitle$(inchan%);
+    tmpchantit$ := Print$("%s_%s",Left$(tmpchantit$,5),appendstring$);
+    ChanTitle$(outchan%,tmpchantit$);
+end
