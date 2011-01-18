@@ -10,6 +10,7 @@ var gotonext%, isokay%;
 var fname$, outresistname$, rdirstring$, outresistvh%[10],starts%[10],stops%[10],vchan%;
 var stepstart, stepend;
 var stpw1, stpw2, stpw3, avgover, restarttime;
+var isoneelect%;
 var i%,j%;
 
 'Handle Views
@@ -24,7 +25,7 @@ rwcnt% := 0;
 isokay% := 1;
 restarttime := Cursor(0); 'script starts cursor(0)
 'Get File Names Ready
-var howmanychans%, channame$, chanmeastmp%, chancurrenttmp%, chanspktmp%, howmanysteps%;
+var howmanychans%, channame$, chanmeastmp%, chancurrenttmp%, chanspktmp%, howmanysteps%, tau;
 howmanychans% := Input("How many chans have steps?", 2);
 outresistvh%[0] := howmanychans%;
 starts%[0] := howmanychans%;
@@ -38,6 +39,7 @@ for i% := 1 to howmanychans% do
     gotonext% := 1;
     chanmeastmp% := Input("Which Voltage chan number?", i%);
     chancurrenttmp% := Input("Which Current moniter chan number?", i%);
+    isoneelect% := Input("No Current Moniter?", 0);
     channame$ := leftunblnkchan$(chanmeastmp%);
     outresistname$ := "inptrst.csv";
     outresistname$ := Print$("%s_%s_%s",fname$,channame$,outresistname$);
@@ -62,10 +64,14 @@ for i% := 1 to howmanychans% do
         endif
     next
     View(vt%);
+    FrontView(vt%);
     starts%[i%] := MemChan(2);
     stops%[i%] := MemChan(2);
     chanspktmp% := MemChan(2);
-    MemImport(chanspktmp%, chanmeastmp%,0,MaxTime(),0,0.0001,0.025); 'the min time btwn event(6tharg) doesn't work >0.001
+'get the spikes from the channel as events    
+    tau := Input("give a tau in millisec \n(approx 2 x the spike dur works well)\n e.g. for b8, 8-10(ms)\n for b4/5 3ms", 3);
+    chanspktmp% := findspkpeak(chanmeastmp%, tau);
+    
     vchan% := makerectslpchan(chancurrenttmp%);
     HCursorDelete(-1);
     HCursorNew(vchan%);
@@ -101,6 +107,7 @@ for i% := 1 to howmanychans% do
                 stepend := seqend;
                 mkmeasurs(chanmeastmp%, chancurrenttmp%, chanspktmp%);
                 printmeasurs(outresistvh%[i%],1,howmanysteps%);
+                if (isoneelect%) then CursorSearch(0); endif
                 else
                     CursorActive(1, 4, vchan%, "Cursor(0)+0.1", "Cursor(0)+30", "Cursor(0)", thresh); 'start finding cursor
                     CursorActive(0, 4, vchan%, 0.1, "", "", thresh);  'end finding cursor
@@ -200,4 +207,30 @@ func leftunblnkchan$(chan%)
             chntit$ := Left$(chntit$, (titlen%-1));
     endcase
     return chntit$;
+end
+
+'This function finds the spikes from the channel of interest, letting
+'user select thresholds with a cursor.
+func findspkpeak(n%, millitau)
+    var eventchantmp%, tmpthresh;
+    var sectau := millitau/1000;
+    var append$ := "spk";
+    ChanHide(-1); ChanShow(n%);
+    HCursorDelete(-1);
+    HCursorNew(n%); HCursorNew(n%);
+    Interact("move cursors",2);
+    HCursorRenumber();
+    tmpthresh := HCursor(2) - HCursor(1);
+    eventchantmp% := MemChan(2);
+    MemImport(eventchantmp%, n%, 0, MaxTime(n%), 0, sectau, tmpthresh);
+    setchantitle(n%, eventchantmp%, append$);
+    return eventchantmp%;
+end
+
+'sets chan title
+proc setchantitle(inchan%, outchan%, appendstring$)
+    var tmpchantit$;
+    tmpchantit$ := ChanTitle$(inchan%);
+    tmpchantit$ := Print$("%s_%s",Left$(tmpchantit$,5),appendstring$);
+    ChanTitle$(outchan%,tmpchantit$);
 end
