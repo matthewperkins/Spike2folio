@@ -1,0 +1,47 @@
+var topview%, i%,j%, viewlist%[100], viewtype%, timerange;
+var ChannelList%[20], OptionalTop[20], OptionalBottom[20];
+
+topview% := View();
+FrontView(topview%);
+ChanList(ChannelList%[],2049); '2049 code gets all Results excepts those that are hidden
+for j% := 1 to ChannelList%[0] do
+    ShowChannel();
+    GetChanRange();
+    Yrange(ChannelList%[j%],OptionalBottom[j%],OptionalTop[j%]);
+next;        
+
+viewtype% := 1; '1 is time views
+ViewList(viewlist%[], viewtype%);
+
+for i% := 1 to viewlist%[0] do
+    if (viewlist%[i%]=topview%) then continue endif;
+    View(viewlist%[i%]);
+    for j% := 1 to ChannelList%[0] do
+        ShowChannel();
+        Yrange(ChannelList%[j%],OptionalBottom[j%],OptionalTop[j%]);
+    next;        
+    XRange(0,timerange);
+    ChanHide(-1);
+    ChanShow(ChannelList%);
+    next;
+FrontView(viewlist%[1]);
+
+proc SetTime()
+    if (MaxTime()> 120) then timerange := 120;
+    else timerange := MaxTime();
+    endif;    
+end
+
+proc ShowChannel()
+    ChanHide(-1);
+    ChanShow(ChannelList%[j%]);
+    FrontView(viewlist%[i%]);
+    SetTime();
+    Draw();
+end
+
+proc GetChanRange()
+    Interact("RESIZE YRANGES ON CHANNELS, HOW YOU WANT THE REST TO BE", 14);
+    OptionalTop[j%] := YHigh(ChannelList%[j%]);
+    OptionalBottom[j%] := YLow(ChannelList%[j%]);
+end
