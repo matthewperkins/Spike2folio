@@ -103,12 +103,11 @@ for i% := 1 to howmanychans% do
         CursorVisible(0,1);
         seqstart := Cursor(0);
         CursorNew(seqstart,1);
-        CursorActive(1, 4, vchan%, "Cursor(0)+0.1", "Cursor(0)+30", "Cursor(0)",  thresh);
         for j% := 1 to (howmanysteps%*2)-1 do
-            CursorActive(1,4,vchan%, "Cursor(1) + 0.1", "Cursor(0) + 30", "Cursor(0)", thresh);
-            CursorSearch(1);
+            CursorSearch(0);
         next
-        seqend := Cursor(1);
+        seqend := Cursor(0);
+        Cursor(0,seqstart);
         XRange(Cursor(0)-35,Cursor(0)+35);
         isokay% := Input("okay?|", 1);
         
