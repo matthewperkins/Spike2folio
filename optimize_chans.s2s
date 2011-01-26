@@ -1,9 +1,12 @@
-var topview%, i%,j%, viewlist%[100], viewtype%, timerange;
+var topview%, i%,j%, viewlist%[100], viewtype%, StartTime, EndTime;
 var ChannelList%[20], OptionalTop[20], OptionalBottom[20];
 
 topview% := View();
 FrontView(topview%);
 ChanList(ChannelList%[],2049); '2049 code gets all Results excepts those that are hidden
+StartTime := XLow();
+EndTime := XHigh();
+
 for j% := 1 to ChannelList%[0] do
     ShowChannel();
     GetChanRange();
@@ -20,23 +23,18 @@ for i% := 1 to viewlist%[0] do
         ShowChannel();
         Yrange(ChannelList%[j%],OptionalBottom[j%],OptionalTop[j%]);
     next;        
-    XRange(0,timerange);
+    XRange(StartTime,EndTime);
     ChanHide(-1);
     ChanShow(ChannelList%);
     next;
-FrontView(viewlist%[1]);
-
-proc SetTime()
-    if (MaxTime()> 120) then timerange := 120;
-    else timerange := MaxTime();
-    endif;    
-end
+FrontView(topview%);
+ChanShow(ChannelList%);
 
 proc ShowChannel()
     ChanHide(-1);
     ChanShow(ChannelList%[j%]);
     FrontView(viewlist%[i%]);
-    SetTime();
+    XRange(StartTime,EndTime);
     Draw();
 end
 
