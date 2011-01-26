@@ -9,8 +9,6 @@ ViewList(viewlist%[], viewtype%);
 GetCursors();
 for i% := 1 to viewlist%[0] do
     View(viewlist%[i%]);
-    SetTime();
-    XRange(0,timerange);
     ChanList(ChannelList%[],1);
     ChanHide(-1);
     ChanShow(ChannelList%);
@@ -18,12 +16,6 @@ for i% := 1 to viewlist%[0] do
     SetCursors();
     next;
 FrontView(topview%);
-
-proc SetTime()
-    if (MaxTime()> 120) then timerange := 120;
-    else timerange := MaxTime();
-    endif;    
-end
 
 proc GetCursors()
     var hcursorcounter%:=0, vcursorcounter%:=0, v%, h%;
