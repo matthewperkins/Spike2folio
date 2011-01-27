@@ -1,15 +1,7 @@
 'SCRIPT TO measure current in a voltage clamp experiment.';
 'MUST have a designated channel as a current moniter, for each cell.';
-'astring';
-'astring';';astring';
-var start, iend, vt%;
-var thresh, seqstart, seqend;
-var numspks%, spklaten, trsharry[200];
-var gotonext%, isokay%;
-var fname$, outcurrentname$, rdirstring$, outcurrentvh%[10],starts%[10],stops%[10],vchan%;
-var stepstart, stepend;
-var isoneelect%;
-var i%,j%;
+var vt%;
+var fname$, outcurrentname$, rdirstring$;
 
 'these are globals that will set the measurements of the jump current, the steadstate current, and the tail currents';
 var GPrepad := 0.002;
@@ -46,18 +38,12 @@ fname$ := Print$("%s%s",FileName$(3),FileName$(4));
 'Get how many signals to measure'; 
 var howmanychans%, channame$;
 howmanychans% := Input("How many chans have steps?", 1);
-outcurrentvh%[0] := howmanychans%;
-
-'outcurrMat is only for one channel pleas';
-var outcurrMat%;
-starts%[0] := howmanychans%;
-stops%[0] := howmanychans%;
 
 'try not to make any thing global, so need some
-variables for passing btwn functions, and for the toolbar actions'
+'variables for passing btwn functions, and for the toolbar actions'
 var i%, chanindx%;
-var GThresh;
-var GSelectedChans%[3]; '[0:cur chan],[1:volt chan],[2:-mark chan],[3:+markchan]';
+var GThresh, GRectSlopeChan%;
+var GSelectedChans%[4]; '[0:cur chan],[1:volt chan],[2:-mark chan],[3:+markchan]';
 var GNames$[2];   '0:channame$, [1:csvname]';
 var GTimes[3][1000]; '[0][0]:events';
 	    '[1][0]:numstarts';
@@ -68,15 +54,19 @@ var GCurrents[10][10][100]; '[0][0][0]:nums of chans';
 	    '[c%][0][0]:num types of measurs,on chan c%';
 	    '[c%][t%][0]:num of t% type of measure';
 	    '[c%][t%][1..10]:first..tenth of t% type measure, on c%';
+var GVoltages[10][10][100]; '[0][0][0]:nums of chans';
+	    '[c%][0][0]:num types of measurs,on chan c%';
+	    '[c%][t%][0]:num of t% type of measure';
+	    '[c%][t%][1..10]:first..tenth of t% type measure, on c%';x
 
 'this big ugly loop is main';
 for i% := 1 to howmanychans% do
     chanindx% := i% - 1;
-    SelectChans(GSelectedChans%[]); 'proc, adds values to selectedchans';
-    MkNames(GNames$[],GSelectedChans%[])
-    MakeMarks(GTimes[], GSelectedChans[]%); 'proc, adds values to times';
-    TakeMeasures(GCurrents[], GTimes[], GSelectedChans%, chanindx%);
-    WriteFiles(GCurrents[]);
+    SelectChans(GSelectedChans%[],i%); 'proc, adds values to selectedchans';
+    MkNames(GNames$[],GSelectedChans%[]);
+    MakeMarks(GTimes[][], GSelectedChans%[]); 'proc, adds values to times';
+    TakeMeasures(GCurrents[][][], GVoltages[][][], GTimes[][], GSelectedChans%[], chanindx%);
+    WriteFiles(GCurrents[][][], GTimes[][], GVoltages[][][], chanindx%);
 next;
 
 proc SelectChans(lchans%[],indx%)
@@ -91,135 +81,102 @@ end;
 
 proc MkNames(lnames$[],lchans%[])
   var channame$, csvname$;
-  channame$ := leftunblnkchan$(lchan%[0]);
+  channame$ := leftunblnkchan$(lchans%[0]);
   csvname$:= "vclamp.csv";
   csvname$ := Print$("%s_%s_%s",fname$,channame$,outcurrentname$);
-  lnames[0] := channame$;
-  lnames[1] := csvname$;
+  lnames$[0] := channame$;
+  lnames$[1] := csvname$;
 end;
 
-proc MakeMarks(ltimes[],lchans%[])
-    var rectslopechan, thresh%
-    rectsolpechan% := MakeRectSlpChan(lchans%[1]);
-    GThresh := SetAThresh(rectslopechan%)
-    CursorDelete(-1);
-    CursorActive(0, 4, vchan%, 0.01, "", "", thresh);  '8 falling thresh, 7 rising threshold';
+proc MakeMarks(ltimes[][],lchans%[])
+    GRectSlopeChan% := MakeRectSlpChan(lchans%[1]);
+    GThresh := SetAThresh(GRectSlopeChan%);
+    CursorVisible(0);
+    CursorActive(0, 4, GRectSlopeChan%, 0.01, "", "", GThresh);  '8 falling thresh, 7 rising threshold';
+    ChanShow(lchans%[2]); ChanShow(lchans%[3]);
     ToolbarSet(8,"&A addStr||add a step start at cursor", addstepstart%);
-    ToolbarSet(7,"&H delone||del a step start near cursor", delstepstart%);
-    ToolbarSet(6,"&T addEnd||add a step end at cursor", addstepstart%);
-    ToolbarSet(5,"&S delEnd||del a step end near cursor1", delstepstart%);
+    ToolbarSet(7,"&E delone||del a step start near cursor", delstepstart%);
+    ToolbarSet(6,"&O addEnd||add a step end at cursor", addstepend%);
+    ToolbarSet(5,"&U delEnd||del a step end near cursor1", delstepend%);
     ToolbarSet(4,"&I DRAW||draw around cursor", drawcrs%);
     ToolbarSet(3, "&C ChngTrsh||change the search threshhald", chngthrsh%);
     ToolbarSet(2,"$&Q quit", outie%);
     ToolbarEnable(1,1);
-    Toolbar("",1);
-    ltimes[0][0] := ChanData(lchans%[3],ltimes[1][]); 'get starts';
-    ChatData(lchans%[2],ltimes[2][]) 'get ends';
+    Toolbar("",511);
+    ltimes[0][0] := ChanData(lchans%[3],ltimes[1][1:999],0, MaxTime()); 'get starts';
+    ltimes[1][0] := ltimes[0][0];
+    ltimes[2][0] := ChanData(lchans%[2],ltimes[2][1:999],0,MaxTime()) 'get ends';
 end
     
-proc TakeMeasures(lcurrents[], ltimes[], lchans%[], cindx%)
-  var vrmp,vstp,holdcurrent,jumpcurrent,sscurrent,tailcurrent;
+proc TakeMeasures(lcurrents[][][], lvoltages[][][], ltimes[][], lchans%[], cindx%)
+  var holdvoltage,jumpvoltage,ssvoltage,tailvoltage;
+  var holdcurrent,jumpcurrent,sscurrent,tailcurrent;
   var lvoltchan%, lcurchan%, numstps% := ltimes[0][0];
   var stepstart, stepend;
   var j% := 1;
-  lcurrents[cindx%][0][0] := numstps%;
-  for j% := 1 to numstps%; 'iterate through num events';
+  ArrConst(lcurrents[cindx%][][0],numstps%);
+  for j% := 1 to numstps% do; 'iterate through num events';
       stepstart := ltimes[1][j%];
-      stepend := ltime[2][j%];
+      stepend := ltimes[2][j%];
       lcurchan% := lchans%[0];
       lvoltchan% := lchans%[1];
-      vrmp := ChanMeasure(lchans%[1],2,stepstart-avgover, stepstart);
-      vstp := ChanMeasure(lchans%[1],2,stepend-avgover, stepend);
-      vdelt := vstp - vrmp;
       holdcurrent := ChanMeasure(lcurchan%,2,stepstart - GPrePad - GHoldCurrentTime, stepstart - GPrePad);
-      jumpcurrent := ChanMeasure(lcurchan%,2,stepstart + GJumpPad, stepstart + GJumpPad + jumpcurrenttime);
-      sscurrent := ChanMeasure(chancurrent%,2,stepend - GEndpad - GSSCurrentTime, stepend - GEndpad);
-      tailcurrent := ChanMeasure(chancurrent%,2,stepend + GTailPad, stepend + G  TailPad + GTailCurrentTime);
+      holdvoltage := ChanMeasure(lvoltchan%,2,stepstart - GPrePad - GHoldCurrentTime, stepstart - GPrePad);
+      jumpcurrent := ChanMeasure(lcurchan%,2,stepstart + GJumpPad, stepstart + GJumpPad + GJumpCurrentTime);
+      jumpvoltage := ChanMeasure(lvoltchan%,2,stepstart + GJumpPad, stepstart + GJumpPad + GJumpCurrentTime);
+      sscurrent := ChanMeasure(lcurchan%,2,stepend - GEndpad - GSSCurrentTime, stepend - GEndpad);
+      ssvoltage := ChanMeasure(lvoltchan%,2,stepend - GEndpad - GSSCurrentTime, stepend - GEndpad);
+      tailcurrent := ChanMeasure(lcurchan%,2,stepend + GTailPad, stepend + GTailPad + GTailCurrentTime);
+      tailvoltage := ChanMeasure(lvoltchan%,2,stepend + GTailPad, stepend + GTailPad + GTailCurrentTime);
       lcurrents[cindx%][1][j%] := holdcurrent;
       lcurrents[cindx%][2][j%] := jumpcurrent;
-      lcurrents[cindx%][3][j%] := sscurent;
+      lcurrents[cindx%][3][j%] := sscurrent;
       lcurrents[cindx%][4][j%] := tailcurrent;
+      lvoltages[cindx%][1][j%] := holdvoltage;
+      lvoltages[cindx%][2][j%] := jumpvoltage;
+      lvoltages[cindx%][3][j%] := ssvoltage;
+      lvoltages[cindx%][4][j%] := tailvoltage;
   next;
 end
 
-proc WriteFiles(currents[])
+proc WriteFiles(lcurrents[][][], ltimes[][], lvoltages[][][], cindx%)
     var csvfilevh%;
     csvfilevh% := FileNew(1);
-    View(csvfilevh%[i%]);
+    printmeasurs(csvfilevh%, lcurrents[cindx%][][], ltimes[][], lvoltages[cindx%][][]);
+    View(csvfilevh%);
     FrontView(vt%);
-    XRange(Cursor(0)-35,Cursor(0)+35);
-    if isokay% then
-       MemSetItem(starts%[i%], 0, Cursor(0));
-       MemSetItem(stops%[i%], 0, Cursor(1));
-                  
-       docase 
-           case(howmanysteps% = 1) then
-           stepstart := seqstart;
-           stepend := seqend;
-           mkmeasurs(chanvoltagetmp%, chanmeastmp%,  chanspktmp%);
-           printmeasurs(csvfilevh%[i%],1,howmanysteps%);
-           if (isoneelect%) then CursorSearch(0); endif
-           else
-               CursorActive(1, 4, vchan%, "Cursor(0)+0.1", "Cursor(0)+30", "Cursor(0)", thresh); 'start finding cursor';
-               CursorActive(0, 4, vchan%, 0.1, "", "", thresh);  'end finding cursor';
-               for j% := 1 to howmanysteps% do
-                   docase
-                       case (j%=1) then
-                           stepstart := seqstart;
-                           stepend := CursorSearch(1);
-                           CursorSearch(0);
-                           CursorSearch(0);
-                       case (j%=howmanysteps%) then
-                           stepstart := Cursor(0);
-                           stepend := seqend;
-                           CursorSearch(0);
-                       else
-                           stepstart := Cursor(0);
-                           stepend := CursorSearch(1);
-                           CursorSearch(0);
-                           CursorSearch(0);
-                   endcase
-                   mkmeasurs(chanvoltagetmp%, chanmeastmp%,  chanspktmp%);
-                   printmeasurs(csvfilevh%[i%],j%, howmanysteps%);
-               next
-       endcase;
-   endif
-   gotonext% := Input("next?|", 1);
-   if gotonext% then
-           Cursor(0,Cursor(0)+1);
-   endif
-    wend
-    View(vt%);
-    View(csvfilevh%[i%]); FilePathSet(rdirstring$); FileSaveAs(outcurrentname$,1); FileClose();
-next
-ChanDelete(vchan%);
-ChanDelete(starts%[]);
-ChanDelete(stops%[]);
-'ArrSum(rsltsarr[0:rwcnt%][], rlstmean[]);';
+    View(csvfilevh%);
+    FilePathSet(rdirstring$);
+    FileSaveAs(outcurrentname$,1);
+    FileClose();
+end
 
-
-proc printmeasurs(outvh%, i%, howmanysteps%)    
-    View(outvh%);
-    if (i% = 1) then
-        Print("%.4f,",seqstart);
-        Print("%.4f,",seqend);
-    endif
-    Print("%.4f,",stepstart);
-    Print("%.4f,",stepend);        
-    Print("%.4f,",vstprmp);
-    Print("%.4f,",vstpvlts);
-    Print("%.4f,",vstpdelt);
-    Print("%.4f,",holdcurrent);
-    Print("%.4f,",jumpcurrent);
-    Print("%.4f,",sscurrent);
-    Print("%.4f,",tailcurrent);
-    if (i% = howmanysteps%) then
-        Print("\n");
-    endif
-    View(vt%);
+proc printmeasurs(outvh%, llcurrents[][], lltimes[][], llvoltages[][])
+    var lnumsteps% := lltimes[0][0];
+    view(outvh%);
+    Print("step_starts,");
+    Print("%.4f,",lltimes[1][1:lnumsteps%]);
+    Print("\nstep_ends,");
+    Print("%.4f,",lltimes[2][1:lnumsteps%]);
+    Print("\nhold_voltage,");
+    Print("%.4f,",llvoltages[1][1:lnumsteps%]);
+    Print("\njump_voltage,");
+    Print("%.4f,",llvoltages[2][1:lnumsteps%]);
+    Print("\nss_voltage,");
+    Print("%.4f,",llvoltages[3][1:lnumsteps%]);
+    Print("\ntail_voltage,");
+    Print("%.4f,",llvoltages[4][1:lnumsteps%]);
+    Print("\nhold_current,");
+    Print("%.4f,",llcurrents[1][1:lnumsteps%]);
+    Print("\njump_current,");
+    Print("%.4f,",llcurrents[2][1:lnumsteps%]);
+    Print("\nss_current,");
+    Print("%.4f,",llcurrents[3][1:lnumsteps%]);
+    Print("\ntail_current,");
+    Print("%.4f,",llcurrents[4][1:lnumsteps%]);
 end            
 
-'This func deletes the mean of the current moniter channel ';
+'This func deletes the mean of the a channel ';
 '(to avoid sign problems with a holding current), then takes the ';
 'abs value of the of the demeaned channel so a single threshold cateches ';
 'both positive and negative';
@@ -248,24 +205,6 @@ func leftunblnkchan$(chan%)
     return chntit$;
 end
 
-'This function finds the spikes from the channel of interest, letting';
-'user select thresholds with a cursor.';
-func findspkpeak(n%, millitau)
-    var eventchantmp%, tmpthresh;
-    var sectau := millitau/1000;
-    var append$ := "spk";
-    ChanHide(-1); ChanShow(n%);
-    HCursorDelete(-1);
-    HCursorNew(n%); HCursorNew(n%);
-    Interact("move cursors",2);
-    HCursorRenumber();
-    tmpthresh := HCursor(2) - HCursor(1);
-    eventchantmp% := MemChan(2);
-    MemImport(eventchantmp%, n%, 0, MaxTime(n%), 0, sectau, tmpthresh);
-    setchantitle(n%, eventchantmp%, append$);
-    return eventchantmp%;
-end
-
 'sets chan title';
 proc setchantitle(inchan%, outchan%, appendstring$)
     var tmpchantit$;
@@ -275,15 +214,16 @@ proc setchantitle(inchan%, outchan%, appendstring$)
 end
 
 func SetAThresh(chan%)
-  var lthrsh;
+  var lthrsh, toolongtime:=120;
   HCursorDelete(-1);
   HCursorNew(chan%);
   ChanShow(chan%);
   Optimise(chan%);
-  Draw(Cursor(0),120);
-  FrontView(vh%);
-  Interact("Thresh",2);
-  thresh := HCursor(1);
+  FrontView(vt%);
+  if MaxTime()<toolongtime then toolongtime:= MaxTime(); endif;
+  Draw(Cursor(0),toolongtime);
+  Interact("Thresh",511);
+  lthrsh := HCursor(1);
   return lthrsh;
 end
 
@@ -319,18 +259,12 @@ end
 func drawcrs%()
 var rngtmp;
     rngtmp := XHigh()-XLow();
-    Draw(Cursor(0)-rngtmp*0.2)
+    Draw(Cursor(0)-rngtmp*0.2);
 return(1);
+end
 
 func chngthrsh%()
-var lthrsh
-  HCursorDelete(-1);
-  HCursorNew(GSelectedChans%[1]);
-  ChanShow(GSelectedChans%[1]);
-  Optimise(GSelectedChans%[1]);
-  Draw(Cursor(0),120);
-  FrontView(vh%);
-  Interact("Thresh",2);
-  lthrsh := HCursor(1);
-  GThresh := lthrsh;
-return lthrsh;
+    GThresh := HCursor(1);
+    CursorActive(0, 4, GRectSlopeChan%, 0.01, "", "", GThresh);  '8 falling thresh, 7 rising threshold';
+return(1);
+end
