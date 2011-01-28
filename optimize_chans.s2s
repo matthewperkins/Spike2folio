@@ -4,8 +4,6 @@ var ChannelList%[20], OptionalTop[20], OptionalBottom[20];
 topview% := View();
 FrontView(topview%);
 ChanList(ChannelList%[],2049); '2049 code gets all Results excepts those that are hidden
-StartTime := XLow();
-EndTime := XHigh();
 
 for j% := 1 to ChannelList%[0] do
     ShowChannel();
@@ -34,7 +32,6 @@ proc ShowChannel()
     ChanHide(-1);
     ChanShow(ChannelList%[j%]);
     FrontView(viewlist%[i%]);
-    XRange(StartTime,EndTime);
     Draw();
 end
 
@@ -42,4 +39,6 @@ proc GetChanRange()
     Interact("RESIZE YRANGES ON CHANNELS, HOW YOU WANT THE REST TO BE", 14);
     OptionalTop[j%] := YHigh(ChannelList%[j%]);
     OptionalBottom[j%] := YLow(ChannelList%[j%]);
+    StartTime := XLow();
+    EndTime := XHigh();
 end
