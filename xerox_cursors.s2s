@@ -9,12 +9,13 @@ ViewList(viewlist%[], viewtype%);
 GetCursors();
 for i% := 1 to viewlist%[0] do
     View(viewlist%[i%]);
-    ChanList(ChannelList%[],1);
+    ChanList(ChannelList%[],2049);
     ChanHide(-1);
     ChanShow(ChannelList%);
     if (viewlist%[i%]=topview%) then continue endif;
     SetCursors();
-    next;
+next;
+
 FrontView(topview%);
 
 proc GetCursors()
