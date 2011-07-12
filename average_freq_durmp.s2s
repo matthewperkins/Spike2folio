@@ -1,5 +1,5 @@
 'want to count number of spikes during protraction and retraction
-var numchans%, chansarry%[10], viewsarry%[10], whchchantmp%, avgfreqtmp, latencytmp, peakfreqtmp;
+var numchans%, chansarry%[10], ChanNames$[10], viewsarry%[10], whchchantmp%, avgfreqtmp, latencytmp, peakfreqtmp;
 var prostartchan%, proendchan%, reendchan%,enstimchan%;
 var psholder, peholder, reholder;
 var tmpmp[3];
@@ -18,32 +18,42 @@ peholder := 1;
 reholder := 1;
 
 'DESIGNATE MPCHANNELS AND CELL CHANNELS
-var nomprostartchan%, nomproendchan%, nomreendchan%;
+var nomprostartchan%, nomproendchan%, nomreendchan%, nomstimstartchan%, stimstartchan%;
 nomprostartchan%:= Input("What channel\n is protraction start mark?", 401);
 nomproendchan% := Input("What channel\n is protraction end mark?", 402);
 nomreendchan% := Input("What channel\n is retraction end mark?", 403);
+nomstimstartchan% := Input("What channel\n is stim start mark?", 405);
 
 prostartchan%:= MemChan(0, nomprostartchan%);
 proendchan% := MemChan(0, nomproendchan%);
 reendchan% := MemChan(0, nomreendchan%);
+stimstartchan% := MemChan(0, nomstimstartchan%);
 MemImport(prostartchan%,nomprostartchan%,0,MaxTime());
 MemImport(proendchan%,nomproendchan%,0,MaxTime());
 MemImport(reendchan%,nomreendchan%,0,MaxTime());
+MemImport(stimstartchan%,nomstimstartchan%,0,MaxTime());
 
 numchans% := Input("how many event channels?", 4);
-enstimchan% := Input("give me a neurogram channel\n with a large artifact\n relative to its signal?", 11);
+enstimchan% := Input("give me a neurogram channel\n with a large artifact\n relative to its signal\nGIVE ZERO IF YOU HAVE YOUR\n OWN STIMSTART CHAN?", 11);
 
 'NEW FILES / CELL CHANNELS / ONE FILE PER CELL
-var fname$, rdirstring$;
+'SPECIFY FILE FORM HERE, THIS IS SOME DAGRON IT STUFF
+var fname$, rdirstring$, NumHeaders%;
+'HAVE TO SPECIFY THE NUMBER OF HEADERS IN THE FILE FORMATE MANUALLY!!!'
+NumHeaders% := 4;
 fname$ := Print$("%s%s",FileName$(3),FileName$(4));
-rdirstring$ := Print$("%s\%s",FileName$(2),fname$);
+rdirstring$ := Print$("%s\%s\%s%s",FileName$(1),FileName$(2),"..\\all_cells");
 
 for i% := 1 to numchans% do
     View(viewtemp%);
     FrontView(viewtemp%);
     DrawAll();
     chansarry%[i%-1] := Input(Print$("%g st channel",i%), 1);
+    ChanNames$[i%-1] := ChanTitle$(chansarry%[i%-1]);
     viewsarry%[i%-1] := FileNew(1);
+    Print("num_headers,%g,\n", NumHeaders%);
+    Print("file_name,%s,\n",fname$);
+    Print("cell_name,%s,\n",ChanNames$[i%-1]);
     Print("pro_start,");
     Print("pro_end,");
     Print("re_end,");
@@ -60,9 +70,14 @@ next
 'MAKE ENSTIMBLOCKS WITH BURSTMAKE
 var outburstchan%, enblockstarts, memchanstim%;
 memchanstim% := MemChan(2);
-memchanstim% := findstimulusstart(enstimchan%);
-outburstchan% := makeenstimblocks(memchanstim%);
-MarkMask(outburstchan%, 0, 0, 1); 'excludes stimblock endings from the outburstchan, leaving only starts 
+'TEST TO SEE IF USR HAS OWN STIM CHAN
+if enstimchan% = 0 then
+    outburstchan% := stimstartchan%;
+else
+    memchanstim% := findstimulusstart(enstimchan%);
+    outburstchan% := makeenstimblocks(memchanstim%);
+    MarkMask(outburstchan%, 0, 0, 1); 'excludes stimblock endings from the outburstchan, leaving only starts 
+endif;
 
 func findstimulusstart(n%)
     var stimevent%, enthresh;
@@ -134,8 +149,14 @@ end
 '... time_each_spk_pro, num_spks_re, time_each_spk_re
 'If there are no spikes in pro or retract, the latency is a blank cell, and the time_each_spk is one blank cell
 func printavglatpeakarry(chan%,vh%)
-    var divnumpsks, divnumrspks;
-    var proavg, prolat, reavg, relat, pspksarry[4000], rspksarry[4000], numpspks%, numrspks%, normpros, normproe, normre;
+    var divnumpsks, divnumrspks, TestData[10];
+    var proavg, prolat, reavg, relat, pspksarry[4000], rspksarry[4000]; 
+    var numpspks%, numrspks%, normpros, normproe, normre;
+    var absprostart, absproend, absreend;
+    ChanData(outburstchan%, TestData[],0, MaxTime());
+    absprostart := tmpmp[0];
+    absproend := tmpmp[1];
+    absreend := tmpmp[2];
     normpros := tmpmp[0] - LastTime(outburstchan%,tmpmp[0]);
     normproe := tmpmp[1] - LastTime(outburstchan%,tmpmp[1]);
     normre := tmpmp[2] - LastTime(outburstchan%, tmpmp[2]);
@@ -150,8 +171,8 @@ func printavglatpeakarry(chan%,vh%)
     numpspks% := ChanData(chan%,pspksarry[],tmpmp[0],tmpmp[1]);
     numrspks% := ChanData(chan%,rspksarry[],tmpmp[1],tmpmp[2]);
     divnumpsks := numpspks%; divnumrspks := numrspks%;
-    proavg := divnumpsks / (normproe - normpros);
-    reavg := divnumrspks / (normre - normproe);
+    proavg := divnumpsks / (absproend-absprostart);
+    reavg := divnumrspks / (absreend-absproend);
     if(numpspks%) then 
         resize pspksarry[numpspks%]; 
         ArrSub(pspksarry[],tmpmp[0]);
@@ -162,9 +183,9 @@ func printavglatpeakarry(chan%,vh%)
         ArrSub(rspksarry[],tmpmp[0]);
     endif
     View(vh%);
-    Print("%.4f,",normpros);
-    Print("%.4f,",normproe);
-    Print("%.4f,",normre);
+    Print("%.4f,",absprostart);
+    Print("%.4f,",absproend);
+    Print("%.4f,",absreend);
     Print("%.4f,",proavg);
     if (prolat<0.0001) then
         Print(",");
