@@ -42,7 +42,7 @@ var fname$, rdirstring$, NumHeaders%;
 'HAVE TO SPECIFY THE NUMBER OF HEADERS IN THE FILE FORMATE MANUALLY!!!'
 NumHeaders% := 4;
 fname$ := Print$("%s%s",FileName$(3),FileName$(4));
-rdirstring$ := Print$("%s\%s\%s%s",FileName$(1),FileName$(2),"..\\all_cells");
+rdirstring$ := Print$("%s\%s\%s",FileName$(1),FileName$(2),"..\\all_cells\\");
 
 for i% := 1 to numchans% do
     View(viewtemp%);
