@@ -1,0 +1,109 @@
+'WANT TO HAVE A WAY TO ADD EXPERIMENTAL CONDITIONS TO A TIME TRACE
+'THIS SCRIPT ADD A CHANNEL FOR EACH CONDITION - 
+'THE CHANNEL IS A MARKER CHANNEL
+'THERE WILL ONLY BE TWO CODES, 0000 - CONDITION START
+'AND 1000 - CONDITION STOP
+'THIS IS THE SAME CODE CONVENTION USED FOR BURST MAKE.
+
+
+'HANDLE VIEWS
+var viewtemp%;
+viewtemp% := View(0);  'Save the current view
+View(viewtemp%);         'restore the original view
+DrawAll();
+FrontView(viewtemp%);
+var chanlist%[20];
+ChanList(chanlist%[], 0x800);
+
+var MarkFeature%, features%[10], FeatureCurs%;
+
+'DRAW SELECTED CHANNELS FOR VISUAL GUIDING OF FEATURE SELECTION
+ChanList(features%[],65536);
+ChanHide(-1);
+ChanShow(features%[]);
+Draw(0,40);
+MarkFeature% := MemChan(5);
+
+'use marker code 0 0 0 0 for condition start
+var condstartcode%[4];
+ArrConst(condstartcode%[], 0);
+
+'use marker code 1 0 0 0 for condition END
+var condendcode%[4];
+ArrConst(condendcode%[], 0);
+condendcode%[0] := 1;
+
+'SHOW CHANNEL, AND PUT LABELED CURSORS IN VIEW
+ChanShow(MarkFeature%); 
+CursorDelete(-1);
+FeatureCurs% := CursorNew();
+CursorLabel(4, FeatureCurs%,"Feature Cursor"); 
+CursorLabelPos(FeatureCurs%,50);
+
+ToolbarClear();
+ToolbarSet(9,"&f frwd||jump forward one view width", forwarddraw%);
+ToolbarSet(8,"&r rvsr||jump backward one view width", backwarddraw%);
+ToolBarSet(7,"&e addSTART||Add Condition Start at Cursor", AddCondStart%);
+ToolBarSet(6,"&u addEND||Add a Condition End at Cursor", AddCondEnd%);
+ToolBarSet(5,"&i del||Delete last Feature Item before Feature Cursor", Del%);
+ToolBarSet(1,"&l save||save eventchannels and leave",outie%);
+ToolbarEnable(1,1);
+Toolbar("",1);
+
+var ConditionName$;
+ConditionName$ := Input$("Condition Name", "Condition Name");
+ChanTitle$(MarkFeature%, ConditionName$);
+ChanSave(MarkFeature%,0);
+    
+'TOOLBAR FUNCTION FOR ADDING & RMVING PRO STARTS, ENDS AND RETR ENDS
+
+
+func forwarddraw%()
+var ttmp, rngtmp;
+    rngtmp := XHigh()-XLow();
+    ttmp := XLow() + rngtmp*0.75;
+    Cursor(FeatureCurs%,(ttmp+rngtmp*0.4));
+    Draw(ttmp);
+return(1);
+end
+
+func backwarddraw%()
+var ttmp, rngtmp;
+    rngtmp := XHigh()-XLow();
+    ttmp := XLow() - rngtmp*0.75;
+    Cursor(FeatureCurs%,(ttmp+rngtmp*0.4));
+    Draw(ttmp);
+return(1);
+end
+
+func AddCondStart%()
+    var cur1;
+    cur1 := Cursor(FeatureCurs%);
+    MemSetItem(MarkFeature%,0,cur1, condstartcode%[]);
+    Draw();
+    return(1);
+end
+
+func AddCondEnd%()
+    var cur1;
+    cur1 := Cursor(FeatureCurs%);
+    MemSetItem(MarkFeature%,0,cur1, condendcode%[]);
+    Draw();
+    return(1);
+end
+
+func Del%()
+    var cur1; var numitems%;
+    cur1 := Cursor(FeatureCurs%);
+    MemDeleteTime(MarkFeature%, 0, cur1, 4);
+    Draw();
+return(1);
+end
+
+func outie%()
+    ChanTitle$(MarkFeature%,"marked_feature"); 
+    ChanSave(MarkFeature%,-1);
+return(0);
+end
+
+
