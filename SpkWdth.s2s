@@ -1,0 +1,32 @@
+'to be includeable
+
+func SpkWdth(LChan%, LSpkPeakTime, RMP, AmpFrac)
+    var HalfWindow := 0.1;
+    var LeftHandStart := LSpkPeakTime - HalfWindow;
+    var RightHandEnd := LSpkPeakTime + HalfWindow;
+    var chndata[3000], LenData%, i%;
+    var TimeLeftRiseThrough, TimeRightFallThrough;
+    var PeakHeight, VThresh;
+    var WdthAtThresh;
+    PeakHeight:= ChanValue(LChan%,LSpkPeakTime);
+    VThresh := ((PeakHeight - RMP) * AmpFrac) + RMP;
+    LenData% := ChanData(LChan%, chndata[], LeftHandStart, LSpkPeakTime);
+    var tmptime;
+    for i% := LenData% to 0 step -1 do
+        if chndata[i%]<VThresh then
+            tmptime := BinSize(LChan%);
+            tmptime := (LenData% - i%);
+            TimeLeftRiseThrough :=  (LenData% - i%) * BinSize(LChan%);
+            break
+        endif;
+    next;
+    LenData% := ChanData(LChan%, chndata[], LSpkPeakTime, RightHandEnd);
+    for i% := 0 to LenData% do
+        if chndata[i%]<VThresh then
+            TimeRightFallThrough :=  i% * BinSize(LChan%);
+            break
+        endif;
+    next;
+    WdthAtThresh := TimeLeftRiseThrough + TimeRightFallThrough;
+    return (WdthAtThresh);
+end

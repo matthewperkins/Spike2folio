@@ -1,0 +1,16 @@
+'To be included, Unfortunately now need parent script to first include basic_view
+
+func FindRMP(LChan%)
+    var LRmpHCursor%;
+    var LRmp;
+    ChanHide(-1);
+    ChanShow(LChan%);
+    LRmpHCursor% := HCursorNew(LChan%,-60);
+    HCursorLabel(1, LRmpHCursor%);
+    HCursorLabelPos(LRmpHCursor%, 0.9);
+    Draw();
+    Interact("Move Horz Cursor to line up with RMP",1023, 1,"&O Okay");
+    LRmp := HCursor(LRmpHCursor%);
+    RestoreStartView();
+    return (LRmp);
+end
