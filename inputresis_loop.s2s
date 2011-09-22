@@ -1,170 +1,257 @@
 'SCRIPT TO measure inptut resistence in a two electrode experiment.
 'MUST have a designated channel as a current moniter, for each cell.
 
-var rwcnt%;
-var start, iend, vt%;
-var rsltsarr[20][225000], rlstmean[225000];
-var thresh, seqstart, seqend, vstprmp, vstpi, vstpdelt, current;
-var numspks%, spklaten, trsharry[200];
-var gotonext%, isokay%;
-var fname$, outresistname$, rdirstring$, outresistvh%[10],starts%[10],stops%[10],vchan%;
-var stepstart, stepend;
-var stpw1, stpw2, stpw3, avgover, restarttime;
-var isoneelect%;
-var i%,j%;
+'''INCLUSIONS'''
+#include <basic_view.s2s>     'this will bring in two globals: GVt% and GChanList%[]
+#include <basic_spk_find.s2s> 'this will bring in two globals: GChan% and GEventChan%
 
-'Handle Views
-vt% := View(0);  'Save the current view
-FrontView(vt%);
-View(vt%);         'restore the original view
-DrawAll();
+'''SCRIPT CONSTANTS'''
+    'average the membrane potiential before the current pulse, over this many seconds
+    var avgover;
+    avgover := 0.2;
+'''END SCRIPT CONSTANTS'''
 
-'script consoles as of now
-avgover := 0.2;
-rwcnt% := 0;
-isokay% := 1;
-restarttime := Cursor(0); 'script starts cursor(0)
-'Get File Names Ready
-var howmanychans%, channame$, chanmeastmp%, chancurrenttmp%, chanspktmp%, howmanysteps%, tau;
+
+'''FILE NAMES PREP'''
+    var GFName$, GDirString$;
+    GFName$ := Print$("%s%s",FileName$(3),FileName$(4));
+    GDirString$ := Print$("%s\%s",FileName$(2),"..\\indiv_cells\\");
+'''END FILE NAMES PREP'''
+
+
+
+'''MAIN LOOP PREP'''
+'vars for measures'
+    var seqstart, seqend, vstprmp, vstpi, vstpdelt, current, fspkwdth;
+    var GRMP;
+    var numspks%, spklaten, trsharry[200], tau;
+    
+'vars for time holding in current sequence
+    var SeqStartTHolder;
+    var SeqEndT;
+    var stepstart, stepend;
+
+'channel vars
+    var GCrrChngEvnt%, chancurrenttmp%;
+    '#defined globals GChan% GEventChan%
+
+'vars for flow cntrl 
+    var gotonext%,i%,j%;
+    var isokay%:=1;
+    var GNumSteps%;
+    var howmanychans%;
+
+'vars for files and views
+    var outresistname$, GOutResistVh%[10], channame$;
+ 
+''''''BEGIN MAIN''''''
 howmanychans% := Input("How many chans have steps?", 2);
-outresistvh%[0] := howmanychans%;
-starts%[0] := howmanychans%;
-stops%[0] := howmanychans%;
-fname$ := Print$("%s%s",FileName$(3),FileName$(4));
-rdirstring$ := Print$("%s\%s",FileName$(2),fname$);
+GOutResistVh%[0] := howmanychans%;
 
 'this big ugly loop is main
 for i% := 1 to howmanychans% do
-    Cursor(0, restarttime);
-    gotonext% := 1;
-    chanmeastmp% := Input("Which Voltage chan number?", i%);
+    'return the view    
+    RestoreStartView();
+        
+    GChan% := Input("Which Voltage chan number?", i%);
     chancurrenttmp% := Input("Which Current moniter chan number?", i%);
-    isoneelect% := Input("No Current Moniter?", 0);
-    channame$ := leftunblnkchan$(chanmeastmp%);
+    channame$ := leftunblnkchan$(GChan%);
     outresistname$ := "inptrst.csv";
-    outresistname$ := Print$("%s_%s_%s",fname$,channame$,outresistname$);
-    howmanysteps% := Input("How many steps?",3);
-    outresistvh%[i%] := FileNew(1);
-    View(outresistvh%[i%]);
-    for j% := 1 to howmanysteps% do 
-        if (j% = 1) then
-            Print("seqstart,");
-            Print("seqend,");
-        endif
-        Print("%s_%d%s","stpstart",j%,",");
-        Print("%s_%d%s","stpend",j%,",");        
-        Print("%s_%d%s","vstp_rmp",j%,",");
-        Print("%s_%d%s","vstp_i",j%,",");
-        Print("%s_%d%s","vstp_delt",j%,",");
-        Print("%s_%d%s","crnt_mntr",j%,",");
-        Print("%s_%d%s","num_spks",j%,",");
-        Print("%s_%d%s","fspk_lat",j%,",");
-        if (j% = howmanysteps%) then
-            Print("\n");
-        endif
-    next
-    View(vt%);
-    FrontView(vt%);
-    starts%[i%] := MemChan(2);
-    stops%[i%] := MemChan(2);
-    chanspktmp% := MemChan(2);
-'get the spikes from the channel as events    
-    tau := Input("give a tau in millisec \n(approx 2 x the spike dur works well)\n e.g. for b8, 8-10(ms)\n for b4/5 3ms", 3);
-    chanspktmp% := findspkpeak(chanmeastmp%, tau);
+    outresistname$ := Print$("%s_%s_%s",GFName$,channame$,outresistname$);
+    GNumSteps% := Input("How many steps?",1);
+    GOutResistVh%[i%] := FileNew(1);
     
-    vchan% := makerectslpchan(chancurrenttmp%);
-    HCursorDelete(-1);
-    HCursorNew(vchan%);
-    ChanShow(vchan%); ChanShow(chanmeastmp%);
-    Optimise(vchan%); Optimise(chanmeastmp%);
-    Draw(Cursor(0),120);
-    FrontView(vt%);
-    Interact("Thresh",2);
-    thresh := HCursor(1);
+    'Print the header for the measurements csv file
+    View(GOutResistVh%[i%]).PrntHeader(GNumSteps%);
+    
+    'return the view    
+    RestoreStartView();
+    
+    'get the spikes from the channel as events    
+    GEventChan% := FindSpks(GChan%);
+    GRMP := FindRMP(GChan%);
+    
+    'add created event channel to GChanList (displayed with RestoreStartView)
+    AddChanToStartView(GEventChan%);
+    
+    'create a current change event chan
+    GCrrChngEvnt% := CurrentChangeEvent(chancurrenttmp%,GChan%);
+    AddChanToStartView(GCrrChngEvnt%);
+       
+    'prep cursors
+    gotonext% := 1;
+    SeqStartTHolder := 0;
     while (gotonext%) do
         CursorDelete(-1);
-        CursorActive(0, 4, vchan%, 0.01, "", "", thresh);  '8 falling thresh, 7 rising threshold
-        CursorSearch(0);
-        CursorVisible(0,1);
-        seqstart := Cursor(0);
-        CursorNew(seqstart,1);
-        CursorActive(1, 4, vchan%, "Cursor(0)+0.1", "Cursor(0)+30", "Cursor(0)",  thresh);
-        for j% := 1 to (howmanysteps%*2)-1 do
-            CursorActive(1,4,vchan%, "Cursor(1) + 0.1", "Cursor(0) + 30", "Cursor(0)", thresh);
-            CursorSearch(1);
-        next
-        seqend := Cursor(1);
-        XRange(Cursor(0)-35,Cursor(0)+35);
-        isokay% := Input("okay?|", 1);
         
+        'find the next current change event on curr change channel
+        SeqStartTHolder := NextTime(GCrrChngEvnt%, SeqStartTHolder);
+        
+        'if no more events break exit while
+        if SeqStartTHolder=-1 then
+            break
+        endif;
+        
+        'put a cursor at the found event, this will be the sequence start
+        CursorNew(SeqStartTHolder,1);
+        CursorLabel(4, 1, "Seq Start");CursorLabelPos(1,10);
+        
+        'search in advance of the sequence start time, to find the end of the sequence
+        SeqEndT := SeqStartTHolder;
+        for j% := 1 to (GNumSteps%*2)-1 do
+            SeqEndT := NextTime(GCrrChngEvnt%, SeqEndT);
+        next;
+        
+        'put a cursor at what I is probably the sequence end
+        '(but this will be off if there are extra events in the curr change channel 
+        CursorNew(SeqEndT, 2);
+        CursorLabel(4,2,"Seq End");CursorLabelPos(2,10);
+        
+        'Draw the screen around the found cursors
+        RestoreStartView();
+        XRange(SeqStartTHolder-35,SeqEndT+35);
+        
+        'Change the sequence end if necessary
+        ChngSqnEnd(GCrrChngEvnt%, SeqEndT);
+        
+        'Make measures for each step in the series
         if isokay% then
-            MemSetItem(starts%[i%], 0, Cursor(0));
-            MemSetItem(stops%[i%], 0, Cursor(1));
-                    
             docase 
-                case(howmanysteps% = 1) then
-                stepstart := seqstart;
-                stepend := seqend;
-                mkmeasurs(chanmeastmp%, chancurrenttmp%, chanspktmp%);
-                printmeasurs(outresistvh%[i%],1,howmanysteps%);
-                if (isoneelect%) then CursorSearch(0); endif
+                case(GNumSteps% = 1) then
+                stepstart := SeqStartTHolder;
+                stepend := SeqEndT;
+                mkmeasurs(GChan%, chancurrenttmp%, GEventChan%);
+                printmeasurs(GOutResistVh%[i%],1,GNumSteps%);
+                SeqStartTHolder := SeqEndT
                 else
-                    CursorActive(1, 4, vchan%, "Cursor(0)+0.1", "Cursor(0)+30", "Cursor(0)", thresh); 'start finding cursor
-                    CursorActive(0, 4, vchan%, 0.1, "", "", thresh);  'end finding cursor
-                    for j% := 1 to howmanysteps% do
+                    for j% := 1 to GNumSteps% do
                         docase
                             case (j%=1) then
-                                stepstart := seqstart;
-                                stepend := CursorSearch(1);
-                                CursorSearch(0);
-                                CursorSearch(0);
-                            case (j%=howmanysteps%) then
-                                stepstart := Cursor(0);
-                                stepend := seqend;
-                                CursorSearch(0);
+                                stepstart := SeqStartTHolder;
+                                stepend := NextTime(GCrrChngEvnt%,stepstart);
+                            case (j%=GNumSteps%) then
+                                stepstart := NextTime(GCrrChngEvnt%, stepend);
+                                stepend := SeqEndT;
                             else
-                                stepstart := Cursor(0);
-                                stepend := CursorSearch(1);
-                                CursorSearch(0);
-                                CursorSearch(0);
+                                stepstart := NextTime(GCrrChngEvnt%,stepend);
+                                stepend := NextTime(GCrrChngEvnt%,stepstart);
                         endcase
-                        mkmeasurs(chanmeastmp%, chancurrenttmp%, chanspktmp%);
-                        printmeasurs(outresistvh%[i%],j%, howmanysteps%);
+                        mkmeasurs(GChan%, chancurrenttmp%, GEventChan%);
+                        printmeasurs(GOutResistVh%[i%],j%, GNumSteps%);
                     next
             endcase;
         endif
-        gotonext% := Input("next?|", 1);
-        if gotonext% then
-                Cursor(0,Cursor(0)+1);
-        endif
     wend
-    View(vt%);
-    View(outresistvh%[i%]); FilePathSet(rdirstring$); FileSaveAs(outresistname$,1); FileClose();
+    View(GVt%);
+    View(GOutResistVh%[i%]); FilePathSet(GDirString$); FileSaveAs(outresistname$,1); FileClose();
 next
-ChanDelete(vchan%);
-ChanDelete(starts%[]);
-ChanDelete(stops%[]);
-'ArrSum(rsltsarr[0:rwcnt%][], rlstmean[]);
+
+func FindRMP(LChan%)
+    var LRmpHCursor%;
+    var LRmp;
+    ChanHide(-1);
+    ChanShow(LChan%);
+    LRmpHCursor% := HCursorNew(LChan%,-60);
+    HCursorLabel(1, LRmpHCursor%);
+    HCursorLabelPos(LRmpHCursor%, 0.9);
+    Draw();
+    Interact("Move Horz Cursor to line up with RMP",1023, 1,"&O Okay");
+    LRmp := HCursor(LRmpHCursor%);
+    RestoreStartView();
+    return (LRmp);
+end
+
+proc ChngSqnEnd(GCrrChngEvnt%, SeqEndT)
+    makeeventcursors(3);
+    ToolbarSet(8,"&A add||add a spikes at add cursor", addspk%);
+    ToolbarSet(7,"&E delone||del spk nearest del cursor1", delonespk%);
+    ToolbarSet(6,"&U delbtwn||del all spks btwn two del cursors", delspksbtw%);
+    ToolbarSet(5,"&F done||Don't count this guy, Im done", Fnsh%);    
+    ToolbarSet(4,"&J back||del reverse seq end", SeqEndPre%);
+    ToolbarSet(3,"&K frwd||del advance seq end", SeqEndNext%);
+    ToolbarSet(2,"$&Q okay", Okay%);
+    ToolbarEnable(1,1);
+    Toolbar("",1);
+end
+
+'Sequence end chnging toolbar funcs'
+    func Fnsh%()
+        gotonext% := 0;
+        isokay% := 0;
+        return(0);
+    end
+
+    func SeqEndPre%()
+        SeqEndT := LastTime(GCrrChngEvnt%, SeqEndT);
+        Cursor(2, SeqEndT);
+        Draw();
+    return(1);
+    end
+
+    func SeqEndNext%()
+        SeqEndT := NextTime(GCrrChngEvnt%, SeqEndT);
+        Cursor(2, SeqEndT);
+        Draw();
+    return(1);
+    end
+
+    func Okay%()
+    return(0);
+    end
+'Sequence end chnging toolbar funcs' 
 
 proc mkmeasurs(chanvolts%,chancurrent%,chanspks%)
     vstprmp := ChanMeasure(chanvolts%,2,stepstart-avgover, stepstart);
-    vstpi := ChanMeasure(chanmeastmp%,2,stepend-avgover, stepend);
+    vstpi := ChanMeasure(GChan%,2,stepend-avgover, stepend);
     vstpdelt := vstpi - vstprmp;
     current := ChanMeasure(chancurrent%,2,stepend, stepstart);
     numspks% := ChanData(chanspks%, trsharry[], stepstart, stepend);
     if (numspks%) then 
         spklaten := NextTime(chanspks%, stepstart);
+        fspkwdth := SpkWdth(chanvolts%, spklaten, GRMP, 0.63);
+        spklaten := spklaten - stepstart;
     else
         spklaten := -1;
     endif
     'search for spikes
 end
 
+func SpkWdth(LChan%, LSpkPeakTime, RMP, AmpFrac)
+    var HalfWindow := 0.1;
+    var LeftHandStart := LSpkPeakTime - HalfWindow;
+    var RightHandEnd := LSpkPeakTime + HalfWindow;
+    var chndata[3000], LenData%, i%;
+    var TimeLeftRiseThrough, TimeRightFallThrough;
+    var PeakHeight, VThresh;
+    var WdthAtThresh;
+    PeakHeight:= ChanValue(LChan%,LSpkPeakTime);
+    VThresh := ((PeakHeight - RMP) * AmpFrac) + RMP;
+    LenData% := ChanData(LChan%, chndata[], LeftHandStart, LSpkPeakTime);
+    var tmptime;
+    for i% := LenData% to 0 step -1 do
+        if chndata[i%]<VThresh then
+            tmptime := BinSize(LChan%);
+            tmptime := (LenData% - i%);
+            TimeLeftRiseThrough :=  (LenData% - i%) * BinSize(LChan%);
+            break
+        endif;
+    next;
+    LenData% := ChanData(LChan%, chndata[], LSpkPeakTime, RightHandEnd);
+    for i% := 0 to LenData% do
+        if chndata[i%]<VThresh then
+            TimeRightFallThrough :=  i% * BinSize(LChan%);
+            break
+        endif;
+    next;
+    WdthAtThresh := TimeLeftRiseThrough + TimeRightFallThrough;
+    return (WdthAtThresh);
+end
+    
 proc printmeasurs(outvh%, i%, howmanysteps%)    
     View(outvh%);
     if (i% = 1) then
-        Print("%.4f,",seqstart);
-        Print("%.4f,",seqend);
+        Print("%.4f,",SeqStartTHolder);
+        Print("%.4f,",SeqEndT);
     endif
     Print("%.4f,",stepstart);
     Print("%.4f,",stepend);        
@@ -174,10 +261,11 @@ proc printmeasurs(outvh%, i%, howmanysteps%)
     Print("%.4f,",current);
     Print("%d,",numspks%);
     Print("%.4f,",spklaten);
+    Print("%.4f,",fspkwdth);
     if (i% = howmanysteps%) then
         Print("\n");
     endif
-    View(vt%);
+    View(GVt%);
 end            
 
 'This func deletes the mean of the current moniter channel 
@@ -209,28 +297,46 @@ func leftunblnkchan$(chan%)
     return chntit$;
 end
 
-'This function finds the spikes from the channel of interest, letting
-'user select thresholds with a cursor.
-func findspkpeak(n%, millitau)
-    var eventchantmp%, tmpthresh;
-    var sectau := millitau/1000;
-    var append$ := "spk";
-    ChanHide(-1); ChanShow(n%);
-    HCursorDelete(-1);
-    HCursorNew(n%); HCursorNew(n%);
-    Interact("move cursors",2);
-    HCursorRenumber();
-    tmpthresh := HCursor(2) - HCursor(1);
-    eventchantmp% := MemChan(2);
-    MemImport(eventchantmp%, n%, 0, MaxTime(n%), 0, sectau, tmpthresh);
-    setchantitle(n%, eventchantmp%, append$);
-    return eventchantmp%;
+'''Print the header of the file'''
+func PrntHeader(LNSteps%)
+    var Lj%;
+    for Lj% := 1 to LNSteps% do 
+        if (Lj% = 1) then
+            Print("seqstart,");
+            Print("seqend,");
+        endif
+        Print("%s_%d%s","stpstart",Lj%,",");
+        Print("%s_%d%s","stpend",Lj%,",");        
+        Print("%s_%d%s","vstp_rmp",Lj%,",");
+        Print("%s_%d%s","vstp_i",Lj%,",");
+        Print("%s_%d%s","vstp_delt",Lj%,",");
+        Print("%s_%d%s","crnt_mntr",Lj%,",");
+        Print("%s_%d%s","num_spks",Lj%,",");
+        Print("%s_%d%s","fspk_lat",Lj%,",");
+        Print("%s_%d%s","fspk_wdth",Lj%,",");
+        if (Lj% = LNSteps%) then
+            Print("\n");
+        endif
+    next
 end
 
-'sets chan title
-proc setchantitle(inchan%, outchan%, appendstring$)
-    var tmpchantit$;
-    tmpchantit$ := ChanTitle$(inchan%);
-    tmpchantit$ := Print$("%s_%s",Left$(tmpchantit$,5),appendstring$);
-    ChanTitle$(outchan%,tmpchantit$);
+'''Create and return an event channel with an event for any current step change'''
+'''Just to be sane, pass in both the current channel, and its corresponding voltage chan'''
+'''depends on makerectslpchan'''
+func CurrentChangeEvent(LIChan%, LVChan%)
+    var VirtLIChan%;
+    var LOutEvent%;
+    var LThresh;
+    VirtLIChan% := makerectslpchan(chancurrenttmp%);
+    HCursorDelete(-1);
+    HCursorNew(VirtLIChan%);
+    ChanShow(VirtLIChan%); ChanShow(LVChan%);
+    Optimise(VirtLIChan%); Optimise(LVChan%);
+    Draw(Cursor(0),120);
+    FrontView(GVt%);
+    Interact("Thresh",1023,1,"&O Okay");
+    LThresh := HCursor(1);
+    LOutEvent% := MemChan(2);
+    MemImport(LOutEvent%,VirtLIChan%,0,MaxTime(),0,0.01,LThresh);
+    return LOutEvent%;
 end
