@@ -1,0 +1,160 @@
+''' this script is meant to be included in other scripts as a module'''
+''' because of the toolbar functions it works on globals'''
+''' these globals are named starting with a G...'''
+
+var GChan%;
+var GEventChan%;
+
+func FindSpks(LChan%)
+    var LEventChan%;
+    var LSlopeOrNo%, LTau;
+    var LSpksOkay%:=1;
+    while (LSpksOkay%) do
+        LSlopeOrNo% := Input("compute spikes by peak(1), slope(2), or threshold crossing(3)?", 1);
+        docase
+            case (LSlopeOrNo%=1) then
+                LTau := Input("give a tau in millisec \n(approx 2 x the spike dur works well)\n e.g. for b8, 8-10(ms)\n for b4/5 3ms", 3);
+                LEventChan% := FindSpkPeak(LChan%, LTau);
+            case (LSlopeOrNo%=2) then
+                LTau := Input("give a tau in millisec \n(approx 2 x the spike dur works well)\n e.g. for b8, 8-10(ms)\n for b4/5 3ms", 3);
+                LEventChan% := FindSpkSlp(LChan%, LTau)
+            case (LSlopeOrNo%=3) then
+                LEventChan% := FindSpkThrsh(LChan%);
+        endcase
+        ChanHide(-1); ChanShow(LChan%); ChanShow(LEventChan%);
+        LSpksOkay% := Interact("how does this look?",2,1,"&Y Good||accept the spike theresh and move on to edit individual events","&N Bad||reject spike thresh, and try again");
+        if (LSpksOkay%=1) then break endif;
+    wend
+    return LEventChan%;
+end
+
+func EditSpks(GEventChan%, GChan%)
+    var LStartOver% := 0;
+    makeeventcursors(3);
+    ToolbarSet(7,"&F Forward||Jump view and cursors forward", forwarddraw%);
+    ToolbarSet(6,"&R Backward||Jump view and cursors backward", backwarddraw%);
+    ToolbarSet(5,"&A add||add a spikes at add cursor", addspk%);
+    ToolbarSet(4,"&E delone||del spk nearest del cursor1", delonespk%);
+    ToolbarSet(3,"&U delbtwn||del all spks btwn two del cursors", delspksbtw%);
+    ToolbarSet(2,"$&Q quit", outie%);
+    ToolbarEnable(1,1);
+    Toolbar("",1);
+    LStartOver% := Interact("Happy?",1,0,"&Y Yes","&N No");
+    return LStartOver%;
+end
+
+'Spike editing toolbar functions'
+
+    func addspk%()
+        MemSetItem(GEventChan%,0, Cursor(7));
+    return(1);
+    end
+
+    func delonespk%()
+        MemDeleteTime(GEventChan%,0,Cursor(8),5);
+        Draw();
+    return(1);
+    end
+
+    func delspksbtw%()
+        MemDeleteTime(GEventChan%,3,Cursor(8),Cursor(9));
+        Draw();
+    return(1);
+    end
+
+    func outie%()
+    return(0);
+    end
+
+    func forwarddraw%()
+    var ttmp, rngtmp;
+        rngtmp := XHigh()-XLow();
+        ttmp := XLow() + rngtmp*0.1;
+        Cursor(7,(ttmp+rngtmp*0.2));Cursor(8,(ttmp+rngtmp*0.4));Cursor(9,(ttmp+rngtmp*0.6));
+        Draw(ttmp);
+    return(1);
+    end
+
+    func backwarddraw%()
+    var ttmp, rngtmp;
+        rngtmp := XHigh()-XLow();
+        ttmp := XLow() - rngtmp*0.1;
+        Cursor(7,(ttmp+rngtmp*0.2));Cursor(8,(ttmp+rngtmp*0.4));Cursor(9,(ttmp+rngtmp*0.6));
+        Draw(ttmp);
+    return(1);
+    end
+
+'End toolbar functions'
+
+Proc makeeventcursors(n%)
+    var i%, range := XHigh()-XLow();
+    var divi, divn := n%;
+    var startcurnum% := 9-n%;
+    for i% := 1 to n% do
+        divi := i%;
+        CursorNew(XLow()+(range*0.8*(divi/divn)), startcurnum%+i%);
+    next
+    CursorLabel(4, 7, "add"); CursorLabelPos(1,20);
+    CursorLabel(4, 8,"delete1"); CursorLabelPos(2,20);
+    CursorLabel(4, 9,"delete2"); CursorLabelPos(3,20);
+end
+
+func FindSpkPeak(n%, millitau)
+    var eventchantmp%, tmpthresh;
+    var sectau := millitau/1000;
+    var append$ := "spk";
+    ChanHide(-1); ChanShow(n%);
+    HCursorDelete(-1);
+    HCursorNew(n%, -50); HCursorNew(n%, -10);
+    Interact("move cursors",1023, 0, "&O Okay");
+    HCursorRenumber();
+    tmpthresh := HCursor(2) - HCursor(1);
+    eventchantmp% := MemChan(2);
+    MemImport(eventchantmp%, n%, 0, MaxTime(), 0, sectau, tmpthresh);
+    setchantitle(n%, eventchantmp%, append$);
+    return eventchantmp%;
+end
+
+func FindSpkSlp(n%, millitau)
+    var slopchantmp%, eventchantmp%, tmpthresh;
+    var append$ := "spk";
+    var sectau := millitau/1000;
+    slopchantmp% := MemChan(0,n%);
+    MemImport(slopchantmp%, n%, 0, MaxTime());
+    ChanProcessAdd((slopchantmp%),3, sectau); 'add a slope channel process 3, time contant for slope calculation is sampling interval about.  '
+    DrawMode(slopchantmp%,0);
+    HCursorDelete(-1);
+    HCursorNew(slopchantmp%); HCursorNew(slopchantmp%);
+    ChanHide(-1); ChanShow(n%); ChanShow(slopchantmp%);
+    Optimise(slopchantmp%);
+    DrawAll();
+    Interact("move cursors",1023, 0, "&O Okay");
+    HCursorRenumber();
+    tmpthresh := HCursor(2) - HCursor(1);
+    eventchantmp% := MemChan(2);
+    MemImport(eventchantmp%, slopchantmp%, 0, MaxTime(), 0, 0.0001, tmpthresh);
+    setchantitle(n%, eventchantmp%, append$);
+    ChanDelete(slopchantmp%);
+    return eventchantmp%;
+end
+
+func FindSpkThrsh(n%)
+    var eventchantmp%, tmpthresh;
+    var append$ := "spk";
+    ChanHide(-1); ChanShow(n%);
+    HCursorDelete(-1);
+    HCursorNew(n%);
+    Interact("move cursor",1023, 0, "&O Okay");
+    tmpthresh := HCursor(1);
+    eventchantmp% := MemChan(2);
+    MemImport(eventchantmp%, n%, 0, MaxTime(), 2, 0.002, tmpthresh);
+    setchantitle(n%, eventchantmp%, append$);
+    return eventchantmp%;
+end
+
+proc setchantitle(inchan%, outchan%, appendstring$)
+    var tmpchantit$;
+    tmpchantit$ := ChanTitle$(inchan%);
+    tmpchantit$ := Print$("%s_%s",Left$(tmpchantit$,5),appendstring$);
+    ChanTitle$(outchan%,tmpchantit$);
+end
