@@ -1,0 +1,46 @@
+''' this script is meant to be included in other scripts as a module'''
+''' because of the toolbar functions it works on globals'''
+''' these globals are named starting with a G...'''
+var GVt%;
+var GChanList%[20];
+                                                                    
+'''HANDLE MAIN VIEW'''
+                                                                             
+'Save the current view
+GVt% := View(0);  
+
+'Restore the original view                                     
+RestoreStartView();
+
+'Save visible channels
+ChanList(GChanList%[], 0x800);
+                                                                                  
+
+proc RestoreStartView()                                                                      
+    View(GVt%);         
+    FrontView(GVt%);
+    ChanShow(GChanList%[]);                                                                 
+    DrawAll();
+end
+
+proc AddChanToStartView(LChan%)
+    var LNumChans% := GChanList%[0];
+    GChanList%[LNumChans%+1] := LChan%;
+    GChanList%[0] += 1;
+end
+
+proc RmvChnFrmStartView(LChan%)
+    var Li%, Lj%;
+    var LNumChans% := GChanList%[0];
+    for Li% := 1 to GChanList%[0] do
+        if GChanList%[Li%]=LChan% then
+            for Lj% := Li% to GChanList%[0] do
+                GChanList%[Lj%] := GChanList%[Lj%+1]
+            next;
+        GChanList%[0] -= 1;
+        endif;
+    next;
+end
+  
+
+'''END HANDLE MAIN VIEW'''
