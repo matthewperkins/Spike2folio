@@ -1,0 +1,12 @@
+'This func deletes the mean of the current moniter channel 
+'(to avoid sign problems with a holding current), then takes the 
+'abs value of the of the demeaned channel so a single threshold cateches 
+'both positive and negative
+func MkRctSlpChn(LChan%)
+    var Expr$, LVirtChan%;
+    LVirtChan% := MemChan(0, LChan%);
+    MemImport(LVirtChan%, LChan%, 0.0, MaxTime()); 'Create channel copy
+    ChanProcessAdd(LVirtChan%,3,0.001);
+    ChanProcessAdd(LVirtChan%,0);
+    return LVirtChan%;
+end
