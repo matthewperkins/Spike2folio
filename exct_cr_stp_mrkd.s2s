@@ -1,0 +1,125 @@
+#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\basic_view.s2s>     'this will bring in two globals: GVt% and GChanList%[]
+#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\SpkWdth.s2s>        'bring in func SpkWdth(LChan%, LSpkPeakTime, RMP, AmpFrac)
+#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\FindRMP.s2s>        'bring in func FindRMP(LChan%)
+
+'''SCRIPT CONSTANTS'''
+    'average the membrane potiential before the current pulse, over this many seconds
+    var avgover;
+    avgover := 0.2;
+'''END SCRIPT CONSTANTS'''
+
+
+'''FILE NAMES PREP'''
+    var GFName$, GDirString$;
+    GFName$ := Print$("%s%s",FileName$(3),FileName$(4));
+    GDirString$ := Print$("%s\%s",FileName$(2),"..\\indiv_cells\\");
+'''END FILE NAMES PREP'''
+
+'''vars for measures'''
+    var stepstart, stepend, vstprmp, vstpi, vstpdelt, current, fspkwdth;
+    var GRMP;
+    var numspks%, spklaten, trsharry[200], tau;
+
+var GNumSteps% := 1;
+var GOutResistVh%;
+var GDelim$ := ",";
+
+GOutResistVh% := FileNew(1);
+
+'Print the header for the measurements csv file
+View(GOutResistVh%).PrntHeader(GDelim$);
+RestoreStartView();
+
+'Select intracell channel
+Interact("Select INTRACELL Channel, for mV measures", 1+2+4+8+16+32+64+128+256+512,0,"&O Okay");
+var SlctdChan%[2];
+var GChan%;
+ChanList(SlctdChan%[], 65536); '65536 excludes non-selected channels
+GChan% := SlctdChan%[1];
+
+'Select Event Channel
+Interact("Select Event Channel, that has spike events", 1+2+4+8+16+32+64+128+256+512,0,"&O Okay");
+var GEventChan%;
+ChanList(SlctdChan%[], 65536);
+GEventChan% := SlctdChan%[1];
+
+'Select Current Pulse Event Channel
+Interact("Select EVENT Current pulse channel, 00 01 marker chan a la burstmake", 1+2+4+8+16+32+64+128+256+512,0,"&O Okay");
+ChanList(SlctdChan%[], 65536);
+var GCrrEvntChan%;
+GCrrEvntChan% := SlctdChan%[1];
+
+'Select Current Pulse Event Channel
+Interact("Select Current nA!!! channel", 1+2+4+8+16+32+64+128+256+512,0,"&O Okay");
+ChanList(SlctdChan%[], 65536);
+var GCrrChan%;
+GCrrChan% := SlctdChan%[1];
+RestoreStartView();
+
+'Find RMP
+GRMP := FindRMP(GChan%);
+    
+'use marker code 0 0 0 0 for condition start
+var condstartcode%[4];
+ArrConst(condstartcode%[], 0);
+
+'use marker code 1 0 0 0 for condition END
+var condendcode%[4];
+ArrConst(condendcode%[], 0);
+condendcode%[0] := 1;
+
+var numpulses%;
+numpulses% := Count(GCrrEvntChan%,0,MaxTime()) / 2;
+
+var i%;
+for i% := 1 to numpulses% do
+    stepstart := NextTime(GCrrEvntChan%, stepend, condstartcode%[]);
+    stepend := NextTime(GCrrEvntChan%, stepstart, condendcode%[]);
+    mkmeasurs(GChan%, GCrrChan%, GEventChan%);
+    View(GOutResistVh%).printmeasurs(GDelim$);
+next;
+
+
+proc mkmeasurs(chanvolts%,chancurrent%,chanspks%)
+    vstprmp := ChanMeasure(chanvolts%,2,stepstart-avgover, stepstart);
+    vstpi := ChanMeasure(GChan%,2,stepend-avgover, stepend);
+    vstpdelt := vstpi - vstprmp;
+    current := ChanMeasure(chancurrent%,2,stepend, stepstart);
+    numspks% := ChanData(chanspks%, trsharry[], stepstart, stepend);
+    if (numspks%) then 
+        spklaten := NextTime(chanspks%, stepstart);
+        fspkwdth := SpkWdth(chanvolts%, spklaten, GRMP, 0.63);
+        spklaten := spklaten - stepstart;
+    else
+        spklaten := -1;
+    endif
+    'search for spikes
+end
+
+proc printmeasurs(delim$)
+    Print("%s%s",GFName$,delim$);
+    Print("%.4f%s",stepstart,delim$);
+    Print("%.4f%s",stepend,delim$);        
+    Print("%.4f%s",vstprmp,delim$);
+    Print("%.4f%s",vstpi,delim$);
+    Print("%.4f%s",vstpdelt,delim$);
+    Print("%.4f%s",current,delim$);
+    Print("%d%s",numspks%,delim$);
+    Print("%.4f%s",spklaten,delim$);
+    Print("%.4f%s",fspkwdth,delim$);
+    Print("\n");
+end 
+
+proc PrntHeader(delim$)
+    Print("%s%s","file_name",delim$);
+    Print("%s%s","stpstart",delim$);
+    Print("%s%s","stpend",delim$);        
+    Print("%s%s","vstp_rmp",delim$);
+    Print("%s%s","vstp_i",delim$);
+    Print("%s%s","vstp_delt",delim$);
+    Print("%s%s","crnt_mntr",delim$);
+    Print("%s%s","num_spks",delim$);
+    Print("%s%s","fspk_lat",delim$);
+    Print("%s%s","fspk_wdth",delim$);
+    Print("\n");
+end
