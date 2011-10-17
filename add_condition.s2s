@@ -61,7 +61,7 @@ ChanSave(MarkFeature%,0);
 func forwarddraw%()
 var ttmp, rngtmp;
     rngtmp := XHigh()-XLow();
-    ttmp := XLow() + rngtmp*0.75;
+    ttmp := XLow() + rngtmp*0.1;
     Cursor(FeatureCurs%,(ttmp+rngtmp*0.4));
     Draw(ttmp);
 return(1);
@@ -70,7 +70,7 @@ end
 func backwarddraw%()
 var ttmp, rngtmp;
     rngtmp := XHigh()-XLow();
-    ttmp := XLow() - rngtmp*0.75;
+    ttmp := XLow() - rngtmp*0.1;
     Cursor(FeatureCurs%,(ttmp+rngtmp*0.4));
     Draw(ttmp);
 return(1);
