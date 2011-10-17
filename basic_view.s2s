@@ -9,16 +9,18 @@ var GChanList%[20];
 'Save the current view
 GVt% := View(0);  
 
+'Save visible channels
+View(GVt%);
+ChanList(GChanList%[], 2048);
+
 'Restore the original view                                     
 RestoreStartView();
-
-'Save visible channels
-ChanList(GChanList%[], 0x800);
                                                                                   
 
 proc RestoreStartView()                                                                      
     View(GVt%);         
     FrontView(GVt%);
+    ChanHide(-1);
     ChanShow(GChanList%[]);                                                                 
     DrawAll();
 end
