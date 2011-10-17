@@ -1,9 +1,8 @@
-'WANT TO HAVE A WAY TO ADD EXPERIMENTAL CONDITIONS TO A TIME TRACE
-'THIS SCRIPT ADD A CHANNEL FOR EACH CONDITION - 
-'THE CHANNEL IS A MARKER CHANNEL
-'THERE WILL ONLY BE TWO CODES, 0000 - CONDITION START
-'AND 1000 - CONDITION STOP
-'THIS IS THE SAME CODE CONVENTION USED FOR BURST MAKE.
+'to count spikes for cells with big platow potentials, it may work well to create a mem channel
+'with a slope calculation, and then count events off this channel, this will neccisate counting 
+'times on the slope channel, and then finding the voltage at that time on the real channel.
+'to accurately find the peak voltage, use time of the zero crossing folloing the peak in the slope channel.
+'the array that holds the spike times should hold only this zero crossing time.
 
 #include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\basic_view.s2s>     'this will bring in two globals: GVt% and GGChanList%[]
 
@@ -16,21 +15,11 @@ ChanHide(-1);
 ChanShow(features%[]);
 
 'MAKE THE MARKFEATURE CHANNEL AND SHOW IT
-MarkFeature% := MemChan(5);
+MarkFeature% := MemChan(2);
 ChanShow(MarkFeature%);
 Draw(0,40);
 
-'use marker code 0 0 0 0 for condition start
-var condstartcode%[4];
-ArrConst(condstartcode%[], 0);
-
-'use marker code 1 0 0 0 for condition END
-var condendcode%[4];
-ArrConst(condendcode%[], 0);
-condendcode%[0] := 1;
-
-'SHOW CHANNEL, AND PUT LABELED CURSORS IN VIEW
-ChanShow(MarkFeature%); 
+'PUT LABELED CURSORS IN VIEW
 CursorDelete(-1);
 FeatureCurs% := CursorNew();
 CursorLabel(4, FeatureCurs%,"Feature Cursor"); 
@@ -39,21 +28,15 @@ CursorLabelPos(FeatureCurs%,50);
 ToolbarClear();
 ToolbarSet(9,"&f frwd||jump forward one view width", forwarddraw%);
 ToolbarSet(8,"&r rvsr||jump backward one view width", backwarddraw%);
-ToolBarSet(7,"&e addSTART||Add Condition Start at Cursor", AddCondStart%);
-ToolBarSet(6,"&u addEND||Add a Condition End at Cursor", AddCondEnd%);
-ToolBarSet(5,"&i del||Delete last Feature Item before Feature Cursor", Del%);
+ToolBarSet(7,"&e addpS||Add a Feature Item at Cursor", addfeature%);
+ToolBarSet(5,"&i delpS||Delete last Feature Item before Feature Cursor", delfeature%);
 ToolBarSet(1,"&l save||save eventchannels and leave",outie%);
 ToolbarEnable(1,1);
 Toolbar("",1);
 
-var ConditionName$;
-ConditionName$ := Input$("Condition Name", "Condition Name");
-ChanTitle$(MarkFeature%, ConditionName$);
 ChanSave(MarkFeature%,0);
     
 'TOOLBAR FUNCTION FOR ADDING & RMVING PRO STARTS, ENDS AND RETR ENDS
-
-
 func forwarddraw%()
 var ttmp, rngtmp;
     rngtmp := XHigh()-XLow();
@@ -72,26 +55,19 @@ var ttmp, rngtmp;
 return(1);
 end
 
-func AddCondStart%()
+func addfeature%()
     var cur1;
     cur1 := Cursor(FeatureCurs%);
-    MemSetItem(MarkFeature%,0,cur1, condstartcode%[]);
+    MemSetItem(MarkFeature%,0,cur1);
     Draw();
     return(1);
 end
 
-func AddCondEnd%()
-    var cur1;
-    cur1 := Cursor(FeatureCurs%);
-    MemSetItem(MarkFeature%,0,cur1, condendcode%[]);
-    Draw();
-    return(1);
-end
-
-func Del%()
+func delfeature%()
     var cur1; var numitems%;
     cur1 := Cursor(FeatureCurs%);
-    MemDeleteTime(MarkFeature%, 0, cur1, 4);
+    numitems% := MemGetItem(MarkFeature%);
+    MemDeleteItem(MarkFeature%,numitems%);
     Draw();
 return(1);
 end
