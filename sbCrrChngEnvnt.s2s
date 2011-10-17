@@ -1,0 +1,22 @@
+'basic func to add current chng event
+
+#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\basic_view.s2s>     'this will bring in two globals: GVt% and GChanList%[]
+#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\CrrChngEvnt.s2s>    'bring in func CrrChngEvnt(LIChan%, LVChan%)
+
+var CrrChn%;
+var mVChn%;
+var SlctChn%[2];
+var CrrChnEvntChn%;
+
+Interact("Select chan for current change event finding", 1023, 0, "&O Okay");
+ChanList(SlctChn%, 65536);
+CrrChn% := SlctChn%[1];
+
+Interact("Select intracell mV channel", 1023, 0, "&O Okay");
+ChanList(SlctChn%, 65536);
+mVChn% := SlctChn%[1];
+
+
+CrrChnEvntChn% := CrrChngEvnt(CrrChn%, mVChn%);
+AddChanToStartView(CrrChnEvntChn%);
+RestoreStartView();
