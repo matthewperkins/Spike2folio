@@ -2,10 +2,11 @@
 'MUST have a designated channel as a current moniter, for each cell.
 
 '''INCLUSIONS'''
-#include <basic_view.s2s>     'this will bring in two globals: GVt% and GChanList%[]
-#include <basic_spk_find.s2s> 'this will bring in two globals: GChan% and GEventChan%
-#include <SpkWdth.s2s>        'bring in func SpkWdth(LChan%, LSpkPeakTime, RMP, AmpFrac)
-#include <FindRMP.s2s>        'bring in func FindRMP(LChan%)
+#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\basic_view.s2s>     'this will bring in two globals: GVt% and GChanList%[]
+#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\basic_spk_find.s2s> 'this will bring in two globals: GChan% and GEventChan%
+#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\SpkWdth.s2s>        'bring in func SpkWdth(LChan%, LSpkPeakTime, RMP, AmpFrac)
+#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\FindRMP.s2s>        'bring in func FindRMP(LChan%)
+#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\CrrChngEvnt.s2s>    'bring in func CrrChngEvnt(LIChan%, LVChan%)
 
 '''SCRIPT CONSTANTS'''
     'average the membrane potiential before the current pulse, over this many seconds
@@ -57,7 +58,9 @@ for i% := 1 to howmanychans% do
         
     GChan% := Input("Which Voltage chan number?", i%);
     chancurrenttmp% := Input("Which Current moniter chan number?", i%);
-    channame$ := leftunblnkchan$(GChan%);
+    channame$ := ChanTitle$(GChan%);
+    TrimRight(channame$);
+    ChanTitle$(GChan%, channame$);
     outresistname$ := "inptrst.csv";
     outresistname$ := Print$("%s_%s_%s",GFName$,channame$,outresistname$);
     GNumSteps% := Input("How many steps?",1);
@@ -77,8 +80,9 @@ for i% := 1 to howmanychans% do
     AddChanToStartView(GEventChan%);
     
     'create a current change event chan
-    GCrrChngEvnt% := CurrentChangeEvent(chancurrenttmp%,GChan%);
+    GCrrChngEvnt% := CrrChngEvnt(chancurrenttmp%, GChan%);
     AddChanToStartView(GCrrChngEvnt%);
+    RestoreStartView();
        
     'prep cursors
     gotonext% := 1;
@@ -114,7 +118,7 @@ for i% := 1 to howmanychans% do
         XRange(SeqStartTHolder-35,SeqEndT+35);
         
         'Change the sequence end if necessary
-        ChngSqnEnd(GCrrChngEvnt%, SeqEndT);
+        ChngSqn(GCrrChngEvnt%, SeqEndT);
         
         'Make measures for each step in the series
         if isokay% then
@@ -148,14 +152,16 @@ for i% := 1 to howmanychans% do
     View(GOutResistVh%[i%]); FilePathSet(GDirString$); FileSaveAs(outresistname$,1); FileClose();
 next
 
-proc ChngSqnEnd(GCrrChngEvnt%, SeqEndT)
+proc ChngSqn(GCrrChngEvnt%, SeqEndT)
     makeeventcursors(3);
-    ToolbarSet(8,"&A add||add a spikes at add cursor", addspk%);
-    ToolbarSet(7,"&E delone||del spk nearest del cursor1", delonespk%);
-    ToolbarSet(6,"&U delbtwn||del all spks btwn two del cursors", delspksbtw%);
-    ToolbarSet(5,"&F done||Don't count this guy, Im done", Fnsh%);    
-    ToolbarSet(4,"&J back||del reverse seq end", SeqEndPre%);
-    ToolbarSet(3,"&K frwd||del advance seq end", SeqEndNext%);
+    ToolbarSet(10,"&A add||add a spikes at add cursor", addspk%);
+    ToolbarSet(9,"&E delone||del spk nearest del cursor1", delonespk%);
+    ToolbarSet(8,"&U delbtwn||del all spks btwn two del cursors", delspksbtw%);
+    ToolbarSet(7,"&F done||Don't count this guy, Im done", Fnsh%);
+    ToolbarSet(6,"&E StrtBck||reverse seq start", SeqStartPre%);
+    ToolbarSet(5,"&U StrtFrwd||advance seq start", SeqStartNext%);
+    ToolbarSet(4,"&J EndBck||reverse seq end", SeqEndPre%);
+    ToolbarSet(3,"&K EndFrwd||advance seq end", SeqEndNext%);
     ToolbarSet(2,"$&Q okay", Okay%);
     ToolbarEnable(1,1);
     Toolbar("",1);
@@ -166,6 +172,26 @@ end
         gotonext% := 0;
         isokay% := 0;
         return(0);
+    end
+
+    func SeqStartPre%()
+        SeqStartTHolder := LastTime(GCrrChngEvnt%, SeqStartTHolder);
+        Cursor(1, SeqStartTHolder);
+        'temporary - repos seq end cursor aswell, just by one event
+        SeqEndT := NextTime(GCrrChngEvnt%, SeqStartTHolder);
+        Cursor(2, SeqEndT);
+        Draw();
+    return(1);
+    end
+
+    func SeqStartNext%()
+        SeqStartTHolder := NextTime(GCrrChngEvnt%, SeqStartTHolder);
+        Cursor(1, SeqStartTHolder);
+        'temporary - repos seq end cursor aswell, just by one event
+        SeqEndT := NextTime(GCrrChngEvnt%, SeqStartTHolder);
+        Cursor(2, SeqEndT);
+        Draw();
+    return(1);
     end
 
     func SeqEndPre%()
@@ -206,6 +232,7 @@ end
 proc printmeasurs(outvh%, i%, howmanysteps%)    
     View(outvh%);
     if (i% = 1) then
+        Print("%s,",GFName$);
         Print("%.4f,",SeqStartTHolder);
         Print("%.4f,",SeqEndT);
     endif
@@ -224,40 +251,12 @@ proc printmeasurs(outvh%, i%, howmanysteps%)
     View(GVt%);
 end            
 
-'This func deletes the mean of the current moniter channel 
-'(to avoid sign problems with a holding current), then takes the 
-'abs value of the of the demeaned channel so a single threshold cateches 
-'both positive and negative
-func makerectslpchan(chan%)
-    var expr$, vchan%;
-    vchan% := MemChan(0, chan%);
-    MemImport(vchan%, chan%, 0.0, MaxTime()); 'Create channel copy
-    ChanProcessAdd(vchan%,3,0.001);
-    ChanProcessAdd(vchan%,0);
-    return vchan%;
-end
-
-'This func cuts channel title: either cuts last char if it is white
-'or cuts everything after(including) two contiguous whites.
-func leftunblnkchan$(chan%)
-    var chntit$, titlen%;
-    chntit$ := ChanTitle$(chan%);
-    titlen% := Len(chntit$);
-    docase
-        case (InStr(chntit$, " ") = (titlen%-1)) then
-            chntit$ := Left$(chntit$, (titlen%-1));
-        case (Instr(chntit$, "  ")) then
-            titlen% := InStr(chntit$, "  ");
-            chntit$ := Left$(chntit$, (titlen%-1));
-    endcase
-    return chntit$;
-end
-
 '''Print the header of the file'''
 func PrntHeader(LNSteps%)
     var Lj%;
     for Lj% := 1 to LNSteps% do 
         if (Lj% = 1) then
+            Print("filename,");
             Print("seqstart,");
             Print("seqend,");
         endif
@@ -274,25 +273,4 @@ func PrntHeader(LNSteps%)
             Print("\n");
         endif
     next
-end
-
-'''Create and return an event channel with an event for any current step change'''
-'''Just to be sane, pass in both the current channel, and its corresponding voltage chan'''
-'''depends on makerectslpchan'''
-func CurrentChangeEvent(LIChan%, LVChan%)
-    var VirtLIChan%;
-    var LOutEvent%;
-    var LThresh;
-    VirtLIChan% := makerectslpchan(chancurrenttmp%);
-    HCursorDelete(-1);
-    HCursorNew(VirtLIChan%);
-    ChanShow(VirtLIChan%); ChanShow(LVChan%);
-    Optimise(VirtLIChan%); Optimise(LVChan%);
-    Draw(Cursor(0),120);
-    FrontView(GVt%);
-    Interact("Thresh",1023,1,"&O Okay");
-    LThresh := HCursor(1);
-    LOutEvent% := MemChan(2);
-    MemImport(LOutEvent%,VirtLIChan%,0,MaxTime(),0,0.01,LThresh);
-    return LOutEvent%;
 end
