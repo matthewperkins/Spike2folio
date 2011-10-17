@@ -1,0 +1,144 @@
+'edit items
+
+#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\basic_view.s2s>     'this will bring in two globals: GVt% and GChanList%[]
+
+var TMarkFeature%, MarkFeature%, features%[10], FeatureCurs%;
+var SnglSlctChn%[2];
+
+'SELECT MARK CHANNEL FOR EDITING 
+Interact("Select chan event chan to edit", 1023, 0, "&O Okay");
+ChanList(SnglSlctChn%, 65536);
+TMarkFeature% := SnglSlctChn%[1];
+'check to see if selected channel is a marker channel
+if not(ChanKind(MarkFeature%)=5) then
+    MarkFeature% := MemChan(5);
+    MemImport(MarkFeature%, TMarkFeature%,0, MaxTime());
+else
+    MarkFeature% := TMarkFeature%;
+endif;
+
+
+'SELECT OTHER CHANNELS FOR VISUAL GUIDENCE
+Interact("Select chans to see while messing around", 1023, 0, "&O Okay");
+ChanList(features%[],65536);
+ChanHide(-1);
+ChanShow(features%[]);
+Draw(0,40);
+
+'use marker code 0 0 0 0 for condition start
+var condstartcode%[4];
+ArrConst(condstartcode%[], 0);
+
+'use marker code 1 0 0 0 for condition END
+var condendcode%[4];
+ArrConst(condendcode%[], 0);
+condendcode%[0] := 1;
+
+'SHOW CHANNEL, AND PUT LABELED CURSORS IN VIEW
+ChanShow(MarkFeature%); 
+CursorDelete(-1);
+FeatureCurs% := CursorNew();
+CursorLabel(4, FeatureCurs%,"Feature Cursor"); 
+CursorLabelPos(FeatureCurs%,50);
+
+ToolbarClear();
+ToolbarSet(11, "&N MkEnd||Make End: make the mark nrst featr crs an end", MkEnd%);
+ToolbarSet(10, "&Y  MkStr||Make Start: make the mark nearest the feature cursor a start", MkStart%);
+ToolbarSet(9 , "&f frwd||jump forward", forwarddraw%);
+ToolbarSet(8 , "&r rvsr||jump backward", backwarddraw%);
+ToolBarSet(7 , "&e addSTART||Add Condition Start at Cursor", AddCondStart%);
+ToolBarSet(6 , "&u addEND||Add a Condition End at Cursor", AddCondEnd%);
+ToolBarSet(5 , "&i del||Delete last Feature Item before Feature Cursor", Del%);
+ToolBarSet(1 , "&l save||save eventchannels and leave",outie%);
+ToolbarEnable(1,1);
+Toolbar("",1);
+
+var ConditionName$;
+ConditionName$ := Input$("Condition Name", "Condition Name");
+ChanTitle$(MarkFeature%, ConditionName$);
+ChanSave(MarkFeature%,0);
+    
+'TOOLBAR FUNCTION FOR ADDING & RMVING PRO STARTS, ENDS AND RETR ENDS
+func MkEnd%()
+    var cur1, before, after, closest;
+    cur1 := Cursor(FeatureCurs%);
+    after := NextTime(MarkFeature%, cur1);
+    before := LastTime(MarkFeature%, cur1);
+    if ((after - cur1) < (cur1-before)) then 
+        closest := after 
+    else 
+        closest := before 
+    endif;
+    if (cur1 - closest<4) then
+        MarkEdit(MarkFeature%, closest, condendcode%[]);
+        return(1);
+    else
+        return(1);
+    endif;
+end
+
+func MkStart%()
+    var cur1, before, after, closest;
+    cur1 := Cursor(FeatureCurs%);
+    after := NextTime(MarkFeature%, cur1);
+    before := LastTime(MarkFeature%, cur1);
+    if ((after - cur1) < (cur1-before)) then 
+        closest := after 
+    else 
+        closest := before 
+    endif;
+    if (cur1 - closest<4) then
+        MarkEdit(MarkFeature%, closest, condstartcode%[]);
+        return(1);
+    else
+        return(1);
+    endif;
+end
+    
+func forwarddraw%()
+var ttmp, rngtmp;
+    rngtmp := XHigh()-XLow();
+    ttmp := XLow() + rngtmp*0.1;
+    Cursor(FeatureCurs%,(ttmp+rngtmp*0.4));
+    Draw(ttmp);
+return(1);
+end
+
+func backwarddraw%()
+var ttmp, rngtmp;
+    rngtmp := XHigh()-XLow();
+    ttmp := XLow() - rngtmp*0.1;
+    Cursor(FeatureCurs%,(ttmp+rngtmp*0.4));
+    Draw(ttmp);
+return(1);
+end
+
+func AddCondStart%()
+    var cur1;
+    cur1 := Cursor(FeatureCurs%);
+    MemSetItem(MarkFeature%,0,cur1, condstartcode%[]);
+    Draw();
+    return(1);
+end
+
+func AddCondEnd%()
+    var cur1;
+    cur1 := Cursor(FeatureCurs%);
+    MemSetItem(MarkFeature%,0,cur1, condendcode%[]);
+    Draw();
+    return(1);
+end
+
+func Del%()
+    var cur1; var numitems%;
+    cur1 := Cursor(FeatureCurs%);
+    MemDeleteTime(MarkFeature%, 0, cur1, 4);
+    Draw();
+return(1);
+end
+
+func outie%()
+    ChanTitle$(MarkFeature%,"marked_feature"); 
+    ChanSave(MarkFeature%,-1);
+return(0);
+end
