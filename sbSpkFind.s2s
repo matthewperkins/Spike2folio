@@ -1,0 +1,18 @@
+
+
+#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\basic_view.s2s>     'this will bring in two globals: GVt% and GChanList%[]
+#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\basic_spk_find.s2s> 
+
+var SlctChn%[2];
+var GChan%;
+var GEventChan%;
+
+Interact("Select chan for spk finding", 1023, 0, "&O Okay");
+ChanList(SlctChn%, 65536);
+GChan% := SlctChn%[1];
+GEventChan% := FindSpks(GChan%);
+
+AddChanToStartView(GEventChan%);
+RestoreStartView();
+
+

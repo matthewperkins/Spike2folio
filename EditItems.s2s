@@ -12,7 +12,7 @@ TMarkFeature% := SnglSlctChn%[1];
 'check to see if selected channel is a marker channel
 if not(ChanKind(MarkFeature%)=5) then
     MarkFeature% := MemChan(5);
-    MemImport(MarkFeature%, TMarkFeature%,0, MaxTime());
+    BurstMake(MarkFeature%,TMarkFeature%,0,MaxTime(),5);
 else
     MarkFeature% := TMarkFeature%;
 endif;

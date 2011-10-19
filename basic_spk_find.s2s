@@ -2,9 +2,6 @@
 ''' because of the toolbar functions it works on globals'''
 ''' these globals are named starting with a G...'''
 
-var GChan%;
-var GEventChan%;
-
 func FindSpks(LChan%)
     var LEventChan%;
     var LSlopeOrNo%, LTau;
@@ -26,77 +23,6 @@ func FindSpks(LChan%)
         if (LSpksOkay%=1) then break endif;
     wend
     return LEventChan%;
-end
-
-func EditSpks(GEventChan%, GChan%)
-    var LStartOver% := 0;
-    makeeventcursors(3);
-    ToolbarSet(7,"&F Forward||Jump view and cursors forward", forwarddraw%);
-    ToolbarSet(6,"&R Backward||Jump view and cursors backward", backwarddraw%);
-    ToolbarSet(5,"&A add||add a spikes at add cursor", addspk%);
-    ToolbarSet(4,"&E delone||del spk nearest del cursor1", delonespk%);
-    ToolbarSet(3,"&U delbtwn||del all spks btwn two del cursors", delspksbtw%);
-    ToolbarSet(2,"$&Q quit", outie%);
-    ToolbarEnable(1,1);
-    Toolbar("",1);
-    LStartOver% := Interact("Happy?",1,0,"&Y Yes","&N No");
-    return LStartOver%;
-end
-
-'Spike editing toolbar functions'
-
-    func addspk%()
-        MemSetItem(GEventChan%,0, Cursor(7));
-    return(1);
-    end
-
-    func delonespk%()
-        MemDeleteTime(GEventChan%,0,Cursor(8),5);
-        Draw();
-    return(1);
-    end
-
-    func delspksbtw%()
-        MemDeleteTime(GEventChan%,3,Cursor(8),Cursor(9));
-        Draw();
-    return(1);
-    end
-
-    func outie%()
-    return(0);
-    end
-
-    func forwarddraw%()
-    var ttmp, rngtmp;
-        rngtmp := XHigh()-XLow();
-        ttmp := XLow() + rngtmp*0.1;
-        Cursor(7,(ttmp+rngtmp*0.2));Cursor(8,(ttmp+rngtmp*0.4));Cursor(9,(ttmp+rngtmp*0.6));
-        Draw(ttmp);
-    return(1);
-    end
-
-    func backwarddraw%()
-    var ttmp, rngtmp;
-        rngtmp := XHigh()-XLow();
-        ttmp := XLow() - rngtmp*0.1;
-        Cursor(7,(ttmp+rngtmp*0.2));Cursor(8,(ttmp+rngtmp*0.4));Cursor(9,(ttmp+rngtmp*0.6));
-        Draw(ttmp);
-    return(1);
-    end
-
-'End toolbar functions'
-
-Proc makeeventcursors(n%)
-    var i%, range := XHigh()-XLow();
-    var divi, divn := n%;
-    var startcurnum% := 9-n%;
-    for i% := 1 to n% do
-        divi := i%;
-        CursorNew(XLow()+(range*0.8*(divi/divn)), startcurnum%+i%);
-    next
-    CursorLabel(4, 7, "add"); CursorLabelPos(1,20);
-    CursorLabel(4, 8,"delete1"); CursorLabelPos(2,20);
-    CursorLabel(4, 9,"delete2"); CursorLabelPos(3,20);
 end
 
 func FindSpkPeak(n%, millitau)

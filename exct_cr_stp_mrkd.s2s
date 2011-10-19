@@ -33,9 +33,11 @@ RestoreStartView();
 'Select intracell channel
 Interact("Select INTRACELL Channel, for mV measures", 1+2+4+8+16+32+64+128+256+512,0,"&O Okay");
 var SlctdChan%[2];
-var GChan%;
+var GChan%, GChanName$;
 ChanList(SlctdChan%[], 65536); '65536 excludes non-selected channels
 GChan% := SlctdChan%[1];
+GChanName$ := ChanTitle$(GChan%);
+TrimRight(GChanName$);
 
 'Select Event Channel
 Interact("Select Event Channel, that has spike events", 1+2+4+8+16+32+64+128+256+512,0,"&O Okay");
@@ -98,6 +100,7 @@ end
 
 proc printmeasurs(delim$)
     Print("%s%s",GFName$,delim$);
+    Print("%s%s",GChanName$,delim$);
     Print("%.4f%s",stepstart,delim$);
     Print("%.4f%s",stepend,delim$);        
     Print("%.4f%s",vstprmp,delim$);
@@ -112,6 +115,7 @@ end
 
 proc PrntHeader(delim$)
     Print("%s%s","file_name",delim$);
+    Print("%s%s","chan_name",delim$);
     Print("%s%s","stpstart",delim$);
     Print("%s%s","stpend",delim$);        
     Print("%s%s","vstp_rmp",delim$);
