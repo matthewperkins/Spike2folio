@@ -1,6 +1,6 @@
-#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\basic_view.s2s>     'this will bring in two globals: GVt% and GChanList%[]
-#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\SpkWdth.s2s>        'bring in func SpkWdth(LChan%, LSpkPeakTime, RMP, AmpFrac)
-#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\FindRMP.s2s>        'bring in func FindRMP(LChan%)
+#include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
+#include "include\SpkWdth.s2s"        'bring in func SpkWdth(LChan%, LSpkPeakTime, RMP, AmpFrac)
+#include "include\FindRMP.s2s"        'bring in func FindRMP(LChan%)
 
 '''SCRIPT CONSTANTS'''
     'average the membrane potiential before the current pulse, over this many seconds
@@ -86,7 +86,7 @@ proc mkmeasurs(chanvolts%,chancurrent%,chanspks%)
     vstprmp := ChanMeasure(chanvolts%,2,stepstart-avgover, stepstart);
     vstpi := ChanMeasure(GChan%,2,stepend-avgover, stepend);
     vstpdelt := vstpi - vstprmp;
-    current := ChanMeasure(chancurrent%,2,stepend, stepstart);
+    current := ChanMeasure(chancurrent%,2,stepstart, stepend);
     numspks% := ChanData(chanspks%, trsharry[], stepstart, stepend);
     if (numspks%) then 
         spklaten := NextTime(chanspks%, stepstart);

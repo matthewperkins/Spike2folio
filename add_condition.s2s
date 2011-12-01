@@ -5,7 +5,7 @@
 'AND 1000 - CONDITION STOP
 'THIS IS THE SAME CODE CONVENTION USED FOR BURST MAKE.
 
-#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\basic_view.s2s>     'this will bring in two globals: GVt% and GGChanList%[]
+#include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GGChanList%[]
 
 var MarkFeature%, features%[10], FeatureCurs%;
 

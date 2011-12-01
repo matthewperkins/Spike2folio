@@ -1,7 +1,7 @@
 'basic func to add current chng event
 
-#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\basic_view.s2s>     'this will bring in two globals: GVt% and GChanList%[]
-#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\CrrChngEvnt.s2s>    'bring in func CrrChngEvnt(LIChan%, LVChan%)
+#include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
+#include "include\CrrChngEvnt.s2s"    'bring in func CrrChngEvnt(LIChan%, LVChan%)
 
 var CrrChn%;
 var mVChn%;

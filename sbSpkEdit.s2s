@@ -1,8 +1,8 @@
 
 
-#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\basic_view.s2s>     'this will bring in two globals: GVt% and GChanList%[]
-#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\basic_spk_find.s2s> 
-#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\basic_spk_edit.s2s> 'this will binng in two globals: GChan% and GEventChan%
+#include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
+#include "include\basic_spk_find.s2s"
+#include "include\basic_spk_edit.s2s" 'this will binng in two globals: GChan% and GEventChan%
 
 var SlctChn%[2];
 var features%[10];

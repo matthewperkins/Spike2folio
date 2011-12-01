@@ -1,6 +1,6 @@
 'edit items
 
-#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\basic_view.s2s>     'this will bring in two globals: GVt% and GChanList%[]
+#include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
 
 var TMarkFeature%, MarkFeature%, features%[10], FeatureCurs%;
 var SnglSlctChn%[2];

@@ -2,7 +2,7 @@
 '''Just to be sane, pass in both the current channel, and its corresponding voltage chan'''
 '''depends on makerectslpchan'''
 
-#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\MkRctSlpChn.s2s>     
+#include "MkRctSlpChn.s2s"  
 
 func CrrChngEvnt(LIChan%, LVChan%)
     var VirtLIChan%;

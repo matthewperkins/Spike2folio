@@ -4,7 +4,7 @@
 'to accurately find the peak voltage, use time of the zero crossing folloing the peak in the slope channel.
 'the array that holds the spike times should hold only this zero crossing time.
 
-#include <C:\Documents and Settings\matthew\Documents\weiss_lab\Spike2folio\basic_view.s2s>     'this will bring in two globals: GVt% and GGChanList%[]
+#include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GGChanList%[]
 
 var MarkFeature%, features%[10], FeatureCurs%;
 
