@@ -1,0 +1,6 @@
+#include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
+#include "include\AbfStartTime.s2s"     'this will bring in a function: AbfStartTime$
+
+var FileTimeVec%[7];
+AbfStartTime$(GVt%, FileTimeVec%[]);
+PrintLog(FileTimeVec%[]);

@@ -1,0 +1,34 @@
+'Make an includable for getting the start time of an smr file from an abf 1.8 header'
+
+func AbfStartTime$(vh%, FileTimeVect%[])
+
+    'Get Smr name'
+    var fname$;
+    fname$ := FileName$();
+
+    'Command Name Vars
+    var PythonProgName$ := "get_abf_start.py";
+    'var PythonProgName$ := "test.py";
+    var TmpFName$ := "tmp.txt";
+    var CmbndCmd$;
+    var ProgHnd%;
+    var ProSt%;
+    
+    'Make Cmd for DOS
+    CmbndCmd$ := Print$("cmd /c %s %s > %s", PythonProgName$, fname$, TmpFName$);  
+    'Run command, and wait for it to finish
+    ProgHnd% := ProgRun(CmbndCmd$);
+    YieldSystem(4);
+    ProSt% := ProgStatus(ProgHnd%);
+
+    'Pick up script output from text 
+    var fhandle%;
+    'var outtext$;
+    var fyear%, fmonth%, fday%, fhour%, fmin%, fsec%, fmicrosec%;
+    fhandle% := FileOpen(TmpFName$, 8);
+    View(fhandle%);
+    'Read(outtext$);
+    Read(FileTimeVect%[0:7]);
+    View(vh%);
+    'Return(outtext$);
+end

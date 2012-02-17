@@ -56,7 +56,9 @@ Toolbar("",1);
 var ConditionName$;
 ConditionName$ := Input$("Condition Name", "Condition Name");
 ChanTitle$(MarkFeature%, ConditionName$);
-ChanSave(MarkFeature%,0);
+MarkFeature% := ChanSave(MarkFeature%,0);
+AddChanToStartView(MarkFeature%);
+RestoreStartView();
     
 'TOOLBAR FUNCTION FOR ADDING & RMVING PRO STARTS, ENDS AND RETR ENDS
 func MkEnd%()
