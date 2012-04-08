@@ -1,0 +1,318 @@
+'edit items
+#include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
+
+var TMarkFeature%, MarkFeature%, features%[10], FeatureCurs%;
+var MinBurstInterval := 5; '5 seconds is good for excitability tests
+
+'EDIT FUNC WILL HAVE TIME PASSED TO IT, AND ALL CHANNELS THAT ARE SELECTED WILL HAVE THAT TIME ADDED.
+'NO VALIDATIONS, CHANNELS THAT ARE SELECTED BUT ARE NOT EVENT CHANNELS WILL JUST BE IGNORED.
+
+'SELECT CHANNELS FOR EDITING 
+
+var SlctChn%[31];
+var EvntChn%[31];
+
+Interact("Select (events) chans chan to edit", 1023, 0, "&O Okay");
+GrbEvntChns(SlctChn%[], EvntChn%[]);
+
+'FUNCS AND PROCS FOR SELECTING CHANS
+'have to decide how to handle non-memchans
+'i think dup as mem channel than delete orig
+
+proc GrbEvntChns(SlctChn%[], EvntChn%[]);
+    var i%, kind%, NmEvChns% := 0;
+    ChanList(SlctChn%[], 65536);
+    for i% := 1 to 30 do
+        if (IsEvntLk%(SlctChn%[i%])) then
+            NmEvChns% := NmEvChns% + 1;
+            EvntChn%[0] := NmEvChns%;
+            EvntChn%[NmEvChns%] := SlctChn%[i%];
+        endif;
+    next;
+end;
+    
+func IsEvntLk%(chan%)
+    var kind%;
+    kind% := ChanKind(chan%);
+    docase
+        case kind%=2 then return 1;
+        case kind%=2 then return 1;
+        case kind%=4 then return 1;
+        case kind%=5 then return 1;
+        case kind%=8 then return 1;
+        else return 0;
+    endcase;
+end;
+
+proc DupDelNonMem(ChanSpc%[],MemChans%[]);
+    var i%;
+    MemChans%[0] := ChanSpc%[0];
+    for i% := 1 to ChanSpc%[0] do
+        if ChanSpc%[i%]<400 then
+            MemChans%[i%] := CopyWave%(ChanSpc%[i%]);
+            ChanDelete(ChanSpc%[i%]);
+        else
+            MemChans%[i%] := ChanSpc%[i%];
+        endif;
+    next;
+    ChanShow(MemChans%[]);
+end
+    
+func CopyWave%(chan%) 
+    var mc%;
+    mc% := MemChan(0, chan%);                'Create waveform channel
+    if mc%>0 then                            'Created OK?
+       ChanComment$(mc%, "Copy of channel "+Str$(chan%));
+       MemImport(mc%, chan%, 0, MaxTime());  'Copy data
+       ChanShow(mc%);                        'display new channel
+    endif;
+    return mc%; 'Return the new memory channel number
+end;
+
+'use marker code 0 0 0 0 for condition start
+var startcode%[4];
+ArrConst(startcode%[], 0);
+                                                
+'use marker code 1 0 0 0 for condition END
+var endcode%[4];
+ArrConst(endcode%[], 0);
+endcode%[0] := 1;
+
+'PUT LABELED CURSORS IN VIEW
+CursorDelete(-1);
+FeatureCurs% := CursorNew();
+CursorLabel(4, FeatureCurs%,"Feature Cursor"); 
+CursorLabelPos(FeatureCurs%,50);
+makeeventcursors(3);
+
+ToolbarClear();
+ToolbarSet(14, "&U DlBtwn||Delete between del1 and del2", delspksbtw%);
+ToolbarSet(13, "&N MkEnd||Make End: make the mark nrst featr crs an end", MkEnd%);
+ToolbarSet(12, "&Y  MkStr||Make Start: make the mark nearest the feature cursor a start", MkStart%);
+ToolbarSet(11 , "&j frwd||jump forward", nexttest%);
+ToolbarSet(10 , "&k rvsr||jump backward", lasttest%);
+ToolbarSet(9 , "&f frwd||draw forward", forwarddraw%);
+ToolbarSet(8 , "&r rvsr||draw backward", backwarddraw%);
+ToolBarSet(7 , "&e addSTART||Add Condition Start at Cursor", AddCondStart%);
+ToolBarSet(6 , "&. addEND||Add a Condition End at Cursor", AddCondEnd%);
+ToolBarSet(5 , "&i del||Delete last Feature Item before Feature Cursor", Del%);
+ToolBarSet(1 , "&l save||save eventchannels and leave",outie%);
+ToolbarEnable(1,1);
+Toolbar("",1);
+
+'Don't do saving in this script, use the script bar save chan script instead.
+    
+'TOOLBAR FUNCTION FOR ADDING & RMVING PRO STARTS, ENDS AND RETR ENDS
+'THESE WILL WORK ON THE GLOBAL Cspc%[] MemChan%[]
+
+'next thing to do is to rewrite these tool bar functions so that they iterate over the selected memchans, and act on all the channels
+
+func MkEnd%()
+    var i%;
+    for i% := 1 to MemChan%[0];
+    var cur1, before, after, closest;
+    cur1 := Cursor(FeatureCurs%);
+    after := NextTime(MarkFeature%, cur1);
+    before := LastTime(MarkFeature%, cur1);
+    if ((after - cur1) < (cur1-before)) then 
+        closest := after 
+    else 
+        closest := before 
+    endif;
+    if (cur1 - closest<4) then
+        MarkEdit(MarkFeature%, closest, endcode%[]);
+        return(1);
+    else
+        return(1);
+    endif;
+end
+
+func MkStart%()
+    var cur1, before, after, closest;
+    cur1 := Cursor(FeatureCurs%);
+    after := NextTime(MarkFeature%, cur1);
+    before := LastTime(MarkFeature%, cur1);
+    if ((after - cur1) < (cur1-before)) then 
+        closest := after 
+    else 
+        closest := before 
+    endif;
+    if (cur1 - closest<4) then
+        MarkEdit(MarkFeature%, closest, startcode%[]);
+        return(1);
+    else
+        return(1);
+    endif;
+end
+    
+func forwarddraw%()
+var ttmp, rngtmp;
+    'FIND RELATIVE POSITIONS OF CURSORS
+    var RelPosFeat, RelPosDel, RelPosDel2;
+    RelPosFeat := FeatureCurs% - XLow();
+    RelPosDel := Cursor(8) - XLow();
+    RelPosDel2 := Cursor(9) - XLow();
+
+    
+    rngtmp := XHigh()-XLow();
+    ttmp := XLow() + rngtmp*0.1;
+    Cursor(FeatureCurs%,(ttmp+RelPosFeat));
+    Cursor(8,(ttmp+RelPosDel));Cursor(9,(ttmp+RelPosDel2));
+    Draw(ttmp);
+return(1);
+end
+
+func backwarddraw%()
+var ttmp, rngtmp;
+    'FIND RELATIVE POSITIONS OF CURSORS
+    var RelPosFeat, RelPosDel, RelPosDel2;
+    RelPosFeat := FeatureCurs% - XLow();
+    RelPosDel := Cursor(8) - XLow();
+    RelPosDel2 := Cursor(9) - XLow();
+
+    rngtmp := XHigh()-XLow();
+    ttmp := XLow() - rngtmp*0.1;
+    Cursor(FeatureCurs%,(ttmp+RelPosFeat));
+    Cursor(8,(ttmp+RelPosDel));Cursor(9,(ttmp+RelPosDel2));
+    Draw(ttmp);
+return(1);
+end
+
+func AddCondStart%()
+    var FeaCurTime;
+    FeaCurTime := Cursor(FeatureCurs%);
+    MemSetItem(MarkFeature%,0,FeaCurTime, startcode%[]);
+    Draw();
+    return(1);
+end
+
+func AddCondEnd%()
+    var FeaCurTime;
+    FeaCurTime := Cursor(FeatureCurs%);
+    MemSetItem(MarkFeature%,0, FeaCurTime, endcode%[]);
+    Draw();
+    return(1);
+end
+
+func Del%()
+    var FeaCurTime; var numitems%;
+    FeaCurTime := Cursor(FeatureCurs%);
+    MemDeleteTime(MarkFeature%, 0, FeaCurTime, 4);
+    Draw();
+return(1);
+end
+
+func delspksbtw%()
+    MemDeleteTime(MarkFeature%,3,Cursor(8),Cursor(9));
+    Draw();
+return(1);
+end
+
+func nexttest%()
+    'want to save cursor position relative to window
+    'then redraw them at the same relative position after jumping window
+    var RelPosFeat, RelPosDel, RelPosDel2;
+    RelPosFeat := FeatureCurs% - XLow();
+    RelPosDel := Cursor(8) - XLow();
+    RelPosDel2 := Cursor(9) - XLow();
+
+    'want to save window position relative to the start of the test
+    'then redraw new window at same relative position
+    'if there is no exct test start mark in view, default to 20 % offset
+    var RelPosWin, rngtmp;
+    rngtmp := XHigh() - XLow();
+    RelPosWin := XLow() - NextTime(MarkFeature%, XLow(), startcode%);
+    if (Abs(RelPosWin) > rngtmp) then
+        RelPosWin := rngtmp * -0.2;
+    endif;
+
+    'find next time and draw window and cursors
+    var ttmp;
+    ttmp := GetNextExctCode(MarkFeature%, XLow(), startcode%);
+    ttmp := GetNextExctCode(MarkFeature%, ttmp, startcode%);
+    ttmp := ttmp + RelPosWin;
+    Cursor(FeatureCurs%,(ttmp+RelPosFeat));
+    Cursor(8,(ttmp+RelPosDel));Cursor(9,(ttmp+RelPosDel2));
+    Draw(ttmp);
+    return(1);
+end
+
+func lasttest%()
+    'want to save cursor position relative to window
+    'then redraw them at the same relative position after jumping window
+    var RelPosFeat, RelPosDel, RelPosDel2;
+    RelPosFeat := FeatureCurs% - XLow();
+    RelPosDel := Cursor(8) - XLow();
+    RelPosDel2 := Cursor(9) - XLow();
+
+    'want to save window position relative to the start of the test
+    'then redraw new window at same relative position
+    'if there is no exct test start mark in view, default to 20 % offset
+    var RelPosWin, rngtmp;
+    rngtmp := XHigh() - XLow();
+    RelPosWin := XLow() - NextTime(MarkFeature%, XLow(), startcode%[]);
+    if (Abs(RelPosWin) > rngtmp) then
+        RelPosWin := rngtmp * -0.2;
+    endif;
+
+
+    'find next time and draw window and cursors
+    var ttmp;
+    ttmp := GetLastExctCode(MarkFeature%, XLow(), startcode%[]);
+    Cursor(FeatureCurs%,(ttmp+RelPosFeat));
+    Cursor(8,(ttmp+RelPosDel));Cursor(9,(ttmp+RelPosDel2));
+    Draw(ttmp);
+    return(1);
+end
+
+func outie%()
+    ChanTitle$(MarkFeature%,"marked_feature"); 
+    ChanSave(MarkFeature%,-1);
+    return(0);
+end
+
+func CopyWave%(chan%) 
+    var mc%;
+    mc% := MemChan(0, chan%);                'Create waveform channel
+    if mc%>0 then                            'Created OK?
+       ChanComment$(mc%, "Copy of channel "+Str$(chan%));
+       MemImport(mc%, chan%, 0, MaxTime());  'Copy data
+    endif;
+    return mc%; 'Return the new memory channel number
+end;
+
+func GetNextExctCode(chan%, time, code%[])
+    var nextcode%[4];
+    var codematch% := 1; 'codematch will be zero when match found
+    while (codematch%=1) do
+        time := NextTime(chan%,time,nextcode%);
+        ArrSub(nextcode%[], code%[]);
+        codematch% := ArrSum(nextcode%[]);
+        if (time=-1) then break endif;
+    wend;
+    return time
+end
+
+func GetLastExctCode(chan%, time, code%[])
+    var nextcode%[4];
+    var codematch% := 1; 'codematch will be zero when match found
+    while (codematch%=1) do
+        time := LastTime(chan%,time,nextcode%);
+        ArrSub(nextcode%[], code%[]);
+        codematch% := ArrSum(nextcode%[]);
+        if (time=-1) then break endif;
+    wend;
+    return time
+end
+
+Proc makeeventcursors(n%)
+    var i%, range := XHigh()-XLow();
+    var divi, divn := n%;
+    var startcurnum% := 9-n%;
+    for i% := 1 to n% do
+        divi := i%;
+        CursorNew(XLow()+(range*0.8*(divi/divn)), startcurnum%+i%);
+    next
+    CursorLabel(4, 8,"delete1"); CursorLabelPos(2,20);
+    CursorLabel(4, 9,"delete2"); CursorLabelPos(3,20);
+end
