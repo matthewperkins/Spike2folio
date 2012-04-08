@@ -1,6 +1,7 @@
 #include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
 #include "include\SpkWdth.s2s"        'bring in func SpkWdth(LChan%, LSpkPeakTime, RMP, AmpFrac)
 #include "include\FindRMP.s2s"        'bring in func FindRMP(LChan%)
+#include "include\AbfStartTime.s2s"   'bring in proc AbfStartTime(vh%, FileTimeVect%[7]), has python script dependency "get_abf_start.py", and Win send .py to python.exe
 
 '''SCRIPT CONSTANTS'''
     'average the membrane potiential before the current pulse, over this many seconds
@@ -9,10 +10,13 @@
 '''END SCRIPT CONSTANTS'''
 
 
-'''FILE NAMES PREP'''
-    var GFName$, GDirString$;
+'''FILE NAMES PREP, and FILE INF PREP'''
+    var GFName$, GDirString$, GFullFName$;
+    var GFileTimeVec%[7];
+    GFullFName$ := FileName$();
     GFName$ := Print$("%s%s",FileName$(3),FileName$(4));
     GDirString$ := Print$("%s\%s",FileName$(2),"..\\indiv_cells\\");
+    AbfStartTime(GVt%, GFileTimeVec%[]);
 '''END FILE NAMES PREP'''
 
 '''vars for measures'''
@@ -24,12 +28,6 @@ var GNumSteps% := 1;
 var GOutResistVh%;
 var GDelim$ := ",";
 
-GOutResistVh% := FileNew(1);
-
-'Print the header for the measurements csv file
-View(GOutResistVh%).PrntHeader(GDelim$);
-RestoreStartView();
-
 'Select intracell channel
 Interact("Select INTRACELL Channel, for mV measures", 1+2+4+8+16+32+64+128+256+512,0,"&O Okay");
 var SlctdChan%[2];
@@ -38,6 +36,11 @@ ChanList(SlctdChan%[], 65536); '65536 excludes non-selected channels
 GChan% := SlctdChan%[1];
 GChanName$ := ChanTitle$(GChan%);
 TrimRight(GChanName$);
+
+'Print the header for the measurements csv file
+GOutResistVh% := FileNew(1);
+View(GOutResistVh%).PrntHeader(GDelim$);
+RestoreStartView();
 
 'Select Event Channel
 Interact("Select Event Channel, that has spike events", 1+2+4+8+16+32+64+128+256+512,0,"&O Okay");
@@ -51,7 +54,7 @@ ChanList(SlctdChan%[], 65536);
 var GCrrEvntChan%;
 GCrrEvntChan% := SlctdChan%[1];
 
-'Select Current Pulse Event Channel
+'Select Current Channel
 Interact("Select Current nA!!! channel", 1+2+4+8+16+32+64+128+256+512,0,"&O Okay");
 ChanList(SlctdChan%[], 65536);
 var GCrrChan%;
@@ -113,7 +116,22 @@ proc printmeasurs(delim$)
     Print("\n");
 end 
 
+
 proc PrntHeader(delim$)
+    var NumHeaders% := 5;
+    Print("%s%s%g\n", "num_headers", delim$, NumHeaders%);
+    Print("%s%s%s\n", "file_name",delim$,GFullFName$);
+    Print("%s\n", "file_start_time");
+    Print("%s%s", "year", delim$);
+    Print("%s%s", "month", delim$);
+    Print("%s%s", "day", delim$);
+    Print("%s%s", "hour", delim$);
+    Print("%s%s", "minute", delim$);
+    Print("%s%s", "second", delim$);
+    Print("%s%s\n", "microsecond", delim$);
+    Print("%g", GFileTimeVec%[]);
+    Print("\n");
+    Print("%s%s%s\n", "cell_name",delim$,GChanName$);
     Print("%s%s","file_name",delim$);
     Print("%s%s","chan_name",delim$);
     Print("%s%s","stpstart",delim$);
@@ -127,3 +145,6 @@ proc PrntHeader(delim$)
     Print("%s%s","fspk_wdth",delim$);
     Print("\n");
 end
+
+
+
