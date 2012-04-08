@@ -3,6 +3,7 @@
 ''' these globals are named starting with a G...'''
 var GVt%;
 var GChanList%[20];
+var GSlctChan%[20];
                                                                     
 '''HANDLE MAIN VIEW'''
                                                                              
@@ -12,6 +13,7 @@ GVt% := View(0);
 'Save visible channels
 View(GVt%);
 ChanList(GChanList%[], 2048);
+ChanList(GSlctChan%[], 65536);
 
 'Restore the original view                                     
 RestoreStartView();

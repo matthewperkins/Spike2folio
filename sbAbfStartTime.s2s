@@ -3,4 +3,4 @@
 
 var FileTimeVec%[7];
 AbfStartTime$(GVt%, FileTimeVec%[]);
-PrintLog(FileTimeVec%[]);
+PrintLog("%g", FileTimeVec%[]);
