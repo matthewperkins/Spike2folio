@@ -1,0 +1,191 @@
+'want to have a protraction level channel, and a retraction level channel.
+
+'the protraction level channel will be automatically created by burst make on i2
+'the rectraciton level channel will be created using B48 or B67's post retraction burst
+'consider adding a hyper retraction phase too, (not now though)
+
+'edit items
+
+#include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
+
+var i2burst%;
+var SnglSlctChn%[2];
+
+'SELECT i2 burst channel 
+Interact("Select chan protraction burst channel", 65536, 0, "&O Okay");
+ChanList(SnglSlctChn%, 65536);
+i2burst% := SnglSlctChn%[1];
+
+'SELECT a post retraction bursting neurons burst channel
+var postRburster%;
+Interact("Select chan b48 or b67 or b47 burst channel", 65536, 0, "&O Okay");
+ChanList(SnglSlctChn%, 65536);
+postRburster%:= SnglSlctChn%[1];
+
+'use marker code 0 0 0 0 for burst start
+var startcode%[4];
+ArrConst(startcode%[], 0);
+
+'use marker code 1 0 0 0 for burst END
+var endcode%[4];
+ArrConst(endcode%[], 0);
+endcode%[0] := 1;
+
+'construct retractions
+var prostart := 0;
+var proend := 0;
+var restart := 0;
+var reend := 0;
+var retraction%;
+var protraction%;
+var i%;
+retraction% := MemChan(5);
+protraction% := CopyWave%(i2burst%);
+
+'get the number of i2 bursts:
+var numi2bursts%;
+numi2bursts%:= Count(i2burst%,0,MaxTime()) / 2;
+
+'START TO GET into trouble when next protraction burst comes before retraction,
+'need to handle this case
+var nxtprostart;
+var RetrctCurs%;
+
+for i% := 1 to numi2bursts% do
+    prostart := NextTime(protraction%, proend, startcode%[]);
+    proend := NextTime(protraction%, prostart, endcode%[]);
+    restart := proend;
+    reend := NextTime(postRburster%, restart+0.1, startcode%[]);
+    'dealing with retraction, this could be conditional
+    'set up cases for retraction end    
+    nxtprostart := NextTime(i2burst%, proend, startcode%[]);
+    docase
+        case reend>=nxtprostart then
+            ChanTitle$(retraction%, "RTRCTEDIT");
+            ChanShow(retraction%);
+            CursorDelete(-1);
+            RetrctCurs% := CursorNew();
+            CursorLabel(4, RetrctCurs%,"Feature Cursor"); 
+            CursorLabelPos(RetrctCurs%,50);
+            XRange(prostart-10, proend+20);
+        
+            ToolbarClear();
+            ToolbarSet(11, "&N MkEnd||Make End: make the mark nrst featr crs an end", MkEnd%);
+            ToolbarSet(10, "&Y  MkStr||Make Start: make the mark nearest the feature cursor a start", MkStart%);
+            ToolbarSet(9 , "&f frwd||jump forward", forwarddraw%);
+            ToolbarSet(8 , "&r rvsr||jump backward", backwarddraw%);
+            ToolBarSet(7 , "&e addSTART||Add Condition Start at Cursor", AddCondStart%);
+            ToolBarSet(6 , "&u addEND||Add a Condition End at Cursor", AddCondEnd%);
+            ToolBarSet(5 , "&i del||Delete last Feature Item before Feature Cursor", Del%);
+            ToolBarSet(1 , "&l save||save eventchannels and leave",outie%);
+            ToolbarEnable(1,1);
+            Toolbar("",1);
+        case reend<nxtprostart then
+            MemSetItem(retraction%,0,restart, startcode%[]);
+            MemSetItem(retraction%,0,reend, endcode%[]);
+    endcase;
+next;
+
+AddChanToStartView(retraction%);
+AddChanToStartView(protraction%);
+ChanTitle$(protraction%,"protraction");
+ChanTitle$(retraction%,"retraction");
+RestoreStartView();
+    
+func CopyWave%(chan%) 
+    var mc%;
+    mc% := MemChan(0, chan%);                'Create waveform channel
+    if mc%>0 then                            'Created OK?
+       ChanComment$(mc%, "Copy of channel "+Str$(chan%));
+       MemImport(mc%, chan%, 0, MaxTime());  'Copy data
+    endif;
+    return mc%; 'Return the new memory channel number
+end;
+    
+'TOOLBAR FUNCTION FOR ADDING & RMVING PRO STARTS, ENDS AND RETR ENDS
+func MkEnd%()
+    var cur1, before, after, closest;
+    cur1 := Cursor(RetrctCurs%);
+    after := NextTime(retraction%, cur1);
+    before := LastTime(retraction%, cur1);
+    if ((after - cur1) < (cur1-before)) then 
+        closest := after 
+    else 
+        closest := before 
+    endif;
+    if (cur1 - closest<4) then
+        MarkEdit(retraction%, closest, endcode%[]);
+        return(1);
+    else
+        return(1);
+    endif;
+end
+
+func MkStart%()
+    var cur1, before, after, closest;
+    cur1 := Cursor(RetrctCurs%);
+    after := NextTime(retraction%, cur1);
+    before := LastTime(retraction%, cur1);
+    if ((after - cur1) < (cur1-before)) then 
+        closest := after 
+    else 
+        closest := before 
+    endif;
+    if (cur1 - closest<4) then
+        MarkEdit(retraction%, closest, startcode%[]);
+        return(1);
+    else
+        return(1);
+    endif;
+end
+    
+func forwarddraw%()
+var ttmp, rngtmp;
+    rngtmp := XHigh()-XLow();
+    ttmp := XLow() + rngtmp*0.1;
+    Cursor(RetrctCurs%,(ttmp+rngtmp*0.4));
+    Draw(ttmp);
+return(1);
+end
+
+func backwarddraw%()
+var ttmp, rngtmp;
+    rngtmp := XHigh()-XLow();
+    ttmp := XLow() - rngtmp*0.1;
+    Cursor(RetrctCurs%,(ttmp+rngtmp*0.4));
+    Draw(ttmp);
+return(1);
+end
+
+func AddCondStart%()
+    var cur1;
+    cur1 := Cursor(RetrctCurs%);
+    MemSetItem(retraction%,0,cur1, startcode%[]);
+    Draw();
+    return(1);
+end
+
+func AddCondEnd%()
+    var cur1;
+    cur1 := Cursor(RetrctCurs%);
+    MemSetItem(retraction%,0,cur1, endcode%[]);
+    Draw();
+    return(1);
+end
+
+func Del%()
+    var cur1; var numitems%;
+    cur1 := Cursor(RetrctCurs%);
+    MemDeleteTime(retraction%, 0, cur1, 4);
+    Draw();
+return(1);
+end
+
+func outie%()
+    ChanTitle$(retraction%,"marked_feature"); 
+    ChanSave(retraction%,-1);
+return(0);
+end
+    
+
+

@@ -1,0 +1,13 @@
+'includeable, no Globals
+'script to destim
+'should have an event chan which has "only" stimulus events
+'remove all event on the arg chan that are with in some TPadSec of each event on the stimulus channel
+'TPad around 0.002 is good?
+
+proc DeleteNear(DelGuideChan%, EditChan%, TPadSec)
+    var DelGuideArray[100000], NumDel%, i%;
+    NumDel% := ChanData(DelGuideChan%, DelGuideArray, 0, MaxTime());
+    for i% := 0 to NumDel%-1 do
+        MemDeleteTime(EditChan%, 3, (DelGuideArray[i%] - TPadSec), (DelGuideArray[i%] + TPadSec));
+    next
+end

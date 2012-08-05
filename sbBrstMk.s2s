@@ -1,0 +1,29 @@
+'edit items
+
+#include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
+
+var TMarkFeature%, MarkFeature%, features%[10], FeatureCurs%;
+var SnglSlctChn%[2];
+var MinBurstInterval := 0.3; '5 seconds is good for excitability tests
+var MinEvntNum% := 3;
+var MaxFirstIsi := 1;
+MinBurstInterval := input("Give a Min Burst Interval", 1);
+MaxFirstIsi := input("Give a max first ISI", 1);
+MinEvntNum% := input("Give a minimun number of events", 200);
+
+'SELECT EVENT CHANNEL FOR BURST MAKING
+Interact("Select chan event for burst making", 65536, 0, "&O Okay");
+ChanList(SnglSlctChn%[], 65536);
+TMarkFeature% := SnglSlctChn%[1];
+MarkFeature% := MemChan(5);
+BurstMake(MarkFeature%,TMarkFeature%,0,MaxTime(),MinBurstInterval, MaxFirstIsi, MinEvntNum%);
+
+var BurstName$;
+
+BurstName$ := ChanTitle$(TMarkFeature%);
+BurstName$ := Print$("%s%s", BurstName$, "Brst");
+ChanTitle$(MarkFeature%, BurstName$);
+MarkFeature% := ChanSave(MarkFeature%,0);
+AddChanToStartView(MarkFeature%);
+RestoreStartView();
+    

@@ -1,0 +1,22 @@
+#include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
+var SlctChn%[10];
+var GChan%;
+var i%;
+Interact("Select event chans to print to log", 1023, 0, "&O Okay");
+ChanList(SlctChn%, 65536);
+
+for i% := 1 to (SlctChn%[0]) do
+    PrntEvnts(SlctChn%[i%]);
+next;
+
+Proc PrntEvnts(chan%)
+    var events[10000];
+    var numevents%;
+    var title$;
+    numevents% := ChanData(chan%, events[], 0, MaxTime());
+    title$ := ChanTitle$(chan%);
+    PrintLog("%s,",title$);
+    PrintLog("%.4f,",events[0:numevents%]);
+    PrintLog("\n");
+end
+

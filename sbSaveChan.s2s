@@ -1,0 +1,16 @@
+#include "include\basic_view.s2s"      'this will bring in two globals: GVt%, GChanList%[], GSlctChan%[];
+'Select chans to save
+var SvdChan%[10];
+if (GSlctChan%[0]=0) then
+    Interact("Select channels to save", 1+2+4+8+16+32+64+128+256+512,0,"&O Okay");
+    ChanList(GSlctChan%[], 65536); '65536 excludes non-selected channels
+endif;
+
+var i%;
+for i% := 1 to GSlctChan%[0] do
+    SvdChan%[i%] := ChanSave(GSlctChan%[i%], 0);
+    SvdChan%[0] := SvdChan%[0] + 1;
+next;
+ChanDelete(GSlctChan%[]);
+ChanShow(SvdChan%[]);
+

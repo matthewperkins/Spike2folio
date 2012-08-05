@@ -1,0 +1,25 @@
+' script to simply delete every other event
+
+#include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
+                                                                                                                                                 
+var dummy%[1], EvntChan%, EditedChan%;
+var SlctChn%[2];
+EvntChan% := Interact("select the event channel", 65536, 0, "&O Okay");
+ChanList(SlctChn%, 65536);
+EvntChan% := SlctChn%[1];
+EditedChan% := MemChan(2);
+
+var eventnum%;
+var numevents%;
+var i%, etime;
+numevents% := Count(EvntChan%, 0, MaxTime());
+for i% :=1 to numevents% step 2 do
+    etime := MemGetItem(EvntChan%, i%);
+    MemSetItem(EditedChan%, 0, etime);
+next;
+
+
+AddChanToStartView(EditedChan%);
+RmvChnFrmStartView(EvntChan%);
+RestoreStartView();
+

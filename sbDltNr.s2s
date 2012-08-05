@@ -1,0 +1,22 @@
+#include "include\basic_view.s2s"      'this will bring in two globals: GVt%, GChanList%[], GSlctChan%[];
+#include "include\DeleteNear.s2s"
+
+'Select chans to destim
+Interact("Select channels to delete near", 1+2+4+8+16+32+64+128+256+512,0,"&O Okay");
+ChanList(GSlctChan%[], 65536); '65536 excludes non-selected channels
+
+'select the Event channel that will guide where to delete
+var SlctChn%[2], GuideChan%;
+Interact("Select chan event channel around which to delete", 1023, 0, "&O Okay");
+ChanList(SlctChn%, 65536);
+GuideChan% := SlctChn%[1];
+
+'get a time padding value that will guide wide to delete around each DelGuideEvent
+var TPad;
+TPad := Input("Give a time padding value", 0.002);
+
+var i%;
+for i% := 1 to GSlctChan%[0] do
+    DeleteNear(GuideChan%, GSlctChan%[i%], TPad);
+next;
+

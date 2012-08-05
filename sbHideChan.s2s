@@ -1,0 +1,9 @@
+#include "include\basic_view.s2s"      'this will bring in three globals: GVt%, GChanList%[], var GSlctChan%[];
+'Select chans to save
+var SvdChan%[10];
+if (GSlctChan%[0]=0) then
+    Interact("Select channels to hide", 1+2+4+8+16+32+64+128+256+512,0,"&O Okay");
+    ChanList(GSlctChan%[], 65536); '65536 excludes non-selected channels
+endif;
+ChanHide(GSlctChan%[]);
+

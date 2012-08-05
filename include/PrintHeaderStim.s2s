@@ -1,0 +1,134 @@
+' includeable for adding stimulation of cbi2 or en into headers
+func CountHeadrStimLins(CondChn%)
+    var dummy[1000];
+    var Nm%;
+    
+    'Mask starts, and count only condition starts
+    var startmask%[256];
+    ArrConst(startmask%[], 0);
+    startmask%[0] := 1;
+    MarkMask(CondChn%, startmask%[], 1);
+
+    'count number of lines for a stim header, is the number of starts, plus 1 for mini-header
+    Nm% := ChanData(CondChn%,dummy[],0,MaxTime()) + 1;
+    MarkMask(CondChn%, -1, 1, -1);
+    return Nm%;
+end;
+
+func CountHeadrCondLins(CondChn%)
+    var dummy[1000];
+    var Nm%;
+    
+    'Mask starts, and count only condition starts
+    var startmask%[256];
+    ArrConst(startmask%[], 0);
+    startmask%[0] := 1;
+    MarkMask(CondChn%, startmask%[], 1);
+
+    'count number of lines for a stim header, is the number of starts, plus 2 for mini-header
+    Nm% := ChanData(CondChn%,dummy[],0,MaxTime()) + 2;
+    MarkMask(CondChn%, -1, 1, -1);
+    return Nm%;
+end;
+
+proc PrintHeaderCond(MrkChan%, SMRVh%, CSVVh%, LnCntr%, delim$)
+    view(SMRVh%);
+    'use marker code 0 0 0 0 for condition start
+    var condstartcode%[4];
+    ArrConst(condstartcode%[], 0);
+
+    'use marker code 1 0 0 0 for condition END
+    var condendcode%[4];
+    ArrConst(condendcode%[], 0);
+    condendcode%[0] := 1;
+
+    var StimStart;
+    var StimEnd;
+    var ChnTtl$ := ChanTitle$(MrkChan%);
+
+    '''' use marker mask to count the number of bursts (by starts)
+    var NumBursts%;
+    MarkMask(MrkChan%, 1);
+    'reset marker mask to include no codes
+    MarkMask(MrkChan%, -1,0,-1);
+    'include marks where 0th is 0
+    MarkMask(MrkChan%, 0, 1, 0);
+    NumBursts% := Count(MrkChan%, 0, MaxTime());
+    'reset marker mask to clear the mask e.i. view all codes
+    MarkMask(MrkChan%, -1,1,-1);
+
+    View(CSVVh%);
+    'print demi or sub section header
+    Print("%s%s%d%s%d\n", "###cond", delim$, LnCntr%, delim$, NumBursts%+2);
+    Print("%s%s%s",ChnTtl$,"start",delim$);
+    Print("%s%s\n",ChnTtl$,"end");
+
+    '' loop over bursts to make measures
+    var i%;
+    for i% := 1 to NumBursts% do
+        View(SMRVh%);
+        StimStart:= NextTime(MrkChan%, StimEnd, condstartcode%[]);
+        StimEnd :=  NextTime(MrkChan%, StimStart, condendcode%[]);
+        View(CSVVh%);
+        Print("%.4f%s",StimStart,delim$);
+        Print("%.4f",StimEnd);
+        Print("\n");
+    next;
+    View(SMRVh%);
+end
+
+proc PrintHeaderStim(EvntChn%, MrkChan%, SMRVh%, CSVVh%, delim$)
+    view(SMRVh%);
+    'use marker code 0 0 0 0 for condition start
+    var condstartcode%[4];
+    ArrConst(condstartcode%[], 0);
+
+    'use marker code 1 0 0 0 for condition END
+    var condendcode%[4];
+    ArrConst(condendcode%[], 0);
+    condendcode%[0] := 1;
+
+    var StimStart;
+    var StimEnd;
+    var NumStims%;
+    var Freq;
+    var ChnTtl$ := ChanTitle$(EvntChn%);
+
+    '''' use marker mask to count the number of bursts (by starts)
+    var NumBursts%;
+    MarkMask(MrkChan%, 1);
+    'reset marker mask to include no codes
+    MarkMask(MrkChan%, -1,0,-1);
+    'include marks where 0th is 0
+    MarkMask(MrkChan%, 0, 1, 0);
+    NumBursts% := Count(MrkChan%, 0, MaxTime());
+    'reset marker mask to clear the mask e.i. view all codes
+    MarkMask(MrkChan%, -1,1,-1);
+
+    View(CSVVh%);
+    'print demi or sub section header
+    Print("%s%s%s",ChnTtl$,"start",delim$);
+    Print("%s%s%s",ChnTtl$,"end",delim$);
+    Print("%s%s%s",ChnTtl$,"NumStims",delim$);
+    Print("%s%s",ChnTtl$,"Freq");
+    Print("\n");
+
+
+    '' loop over bursts to make measures
+    var i%;
+    for i% := 1 to NumBursts% do
+        View(SMRVh%);
+        StimStart:= NextTime(MrkChan%, StimEnd, condstartcode%[]);
+        StimEnd :=  NextTime(MrkChan%, StimStart, condendcode%[]);
+        NumStims% := Count(EvntChn%, StimStart, StimEnd);
+        Freq := NumStims%/(StimEnd - StimStart);
+        View(CSVVh%);
+        Print("%.4f%s",StimStart,delim$);
+        Print("%.4f%s",StimEnd,delim$);
+        Print("%d%s",NumStims%,delim$);
+        Print("%.4f",Freq);
+        Print("\n");
+    next;
+    View(SMRVh%);
+end;
+
