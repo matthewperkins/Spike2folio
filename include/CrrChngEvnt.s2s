@@ -13,7 +13,6 @@ func CrrChngEvnt(LIChan%, LVChan%)
     HCursorNew(VirtLIChan%);
     ChanShow(VirtLIChan%); ChanShow(LVChan%);
     Optimise(VirtLIChan%); Optimise(LVChan%);
-    Draw(Cursor(0),120);
     FrontView(GVt%);
     Interact("Thresh",1023,1,"&O Okay");
     LThresh := HCursor(1);

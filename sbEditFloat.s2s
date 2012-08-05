@@ -12,7 +12,7 @@ var MinBurstInterval := 5; '5 seconds is good for excitability tests
 var SlctChn%[31];
 var EvntChn%[31];
 var MemChns%[31];
-var JmpChn%[2];
+var JmpChn%[2]; 
 
 Interact("Select (events) chans chan to edit", 1023, 0, "&O Okay");
 ChngEdtChns%();
@@ -98,18 +98,18 @@ CursorLabelPos(FeatureCurs%,50);
 makeeventcursors(3);
 
 ToolbarClear();
-ToolbarSet(16, "G JmpChn||Set a channel for jumping around", SetJmpChn%);
-ToolbarSet(15, "&C Chng||Change set of channels you are editing, highlight then click", ChngEdtChns%);
-ToolbarSet(14, "&U DlBtwn||Delete between del1 and del2", delspksbtw%);
-ToolbarSet(13, "&N MkEnd||Make End: make the mark nrst featr crs an end", MkEnd%);
-ToolbarSet(12, "&Y  MkStr||Make Start: make the mark nearest the feature cursor a start", MkStart%);
-ToolbarSet(11 , "&J frwd||jump forward", nexttest%);
-ToolbarSet(10 , "&K rvsr||jump backward", lasttest%);
-ToolbarSet(9 , "&F frwd||draw forward", forwarddraw%);
-ToolbarSet(8 , "&R rvsr||draw backward", backwarddraw%);
-ToolBarSet(7 , "&E addSTART||Add Condition Start at Cursor", AddCondStart%);
-ToolBarSet(6 , "&P addEND||Add a Condition End at Cursor", AddCondEnd%);
-ToolBarSet(5 , "&I del||Delete last Feature Item before Feature Cursor", Del%);
+ToolbarSet(13, "G JmpChn||Set a channel for jumping around", SetJmpChn%);
+ToolbarSet(12, "&C Chng||Change set of channels you are editing, highlight then click", ChngEdtChns%);
+ToolbarSet(11, "&U DlBtwn||Delete between del1 and del2", delspksbtw%);
+ToolbarSet(10, "&N MkEnd||Make End: make the mark nrst featr crs an end", MkEnd%);
+ToolbarSet(9, "&Y  MkStr||Make Start: make the mark nearest the feature cursor a start", MkStart%);
+ToolbarSet(8 , "&J frwd||jump forward", nexttest%);
+ToolbarSet(7 , "&K rvsr||jump backward", lasttest%);
+ToolbarSet(6 , "&F frwd||draw forward", forwarddraw%);
+ToolbarSet(5 , "&R rvsr||draw backward", backwarddraw%);
+ToolBarSet(4 , "&E addSTART||Add Condition Start at Cursor", AddCondStart%);
+ToolBarSet(3 , "&P addEND||Add a Condition End at Cursor", AddCondEnd%);
+ToolBarSet(2 , "&I del||Delete last Feature Item before Feature Cursor", Del%);
 ToolBarSet(1 , "&L save||save eventchannels and leave",outie%);
 ToolbarEnable(1,1);
 Toolbar("",1);
@@ -285,6 +285,7 @@ func lasttest%()
     'find next time and draw window and cursors
     var ttmp;
     ttmp := GetLastExctCode(MarkFeature%, XLow(), startcode%[]);
+    ttmp := ttmp + RelPosWin;
     Cursor(FeatureCurs%,(ttmp+RelPosFeat));
     Cursor(8,(ttmp+RelPosDel));Cursor(9,(ttmp+RelPosDel2));
     Draw(ttmp);
@@ -302,7 +303,6 @@ end
 
 func SetJmpChn%()
     ChanList(JmpChn%[], 65536);
-    DupDelNonMem(JmpChn%[],JmpChn%[]);
     ChngClr(JmpChn%[], 20);
     MarkFeature% := JmpChn%[1];
     return(1);

@@ -1,0 +1,44 @@
+'brings in PathEscape$(Str$) Make an includable for converting \ to \\ for path escapes from windows system vars
+
+func PathEscape$(WinStr$)
+    var CnvStr$, LftMch$, EndMch$;
+    var match% := 1;
+    var matchcount% := 0;
+    while match% do
+        'work from left to right, find dir sep
+        match% := InStr(WinStr$, "\\");
+    
+        'No match, at end of string, affix remainder break exit
+        if (match%=0) then
+            CnvStr$ := Print$("%s\\\\%s", CnvStr$, WinStr$);
+            break
+        endif;
+        
+        'Yes match
+        'Save chars left of sep, not including sep
+        LftMch$ := Left$(WinStr$,match%-1);
+        
+        'If first match just print left of sep
+        if (matchcount%=0) then
+            CnvStr$ := LftMch$;
+        else
+        'Print left of sep, (Appending it to growing string) 
+            CnvStr$ := Print$("%s\\\\%s", CnvStr$, LftMch$);
+        endif;
+        'Next delete the substring just converted, including the dir sep
+        WinStr$ := DelStr$(WinStr$, 0, match%);
+        matchcount% := matchcount% +1;
+    wend;
+    return CnvStr$
+end
+
+'test debug stuff
+var WinStr$, OutStr$;
+WinStr$ := System$("SPKTMP");
+PrintLog(WinStr$);
+PrintLog("\n");
+OutStr$ := PathEscape$(WinStr$);
+PrintLog(OutStr$);
+
+    
+    

@@ -1,5 +1,3 @@
-
-
 #include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
 #include "include\basic_spk_find.s2s" 
 

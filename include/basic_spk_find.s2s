@@ -29,9 +29,7 @@ func FindSpkPeak(n%, millitau)
     var eventchantmp%, tmpthresh;
     var sectau := millitau/1000;
     var append$ := "spk";
-    ChanHide(-1); ChanShow(n%);
-    HCursorDelete(-1);
-    HCursorNew(n%, -50); HCursorNew(n%, -10);
+    PlcCur(n%);
     Interact("move cursors",1023, 0, "&O Okay");
     HCursorRenumber();
     tmpthresh := HCursor(2) - HCursor(1);
@@ -78,9 +76,35 @@ func FindSpkThrsh(n%)
     return eventchantmp%;
 end
 
+proc PlcCur(chan%)
+    var Unts$;
+    var yrng;
+    var LowCurY, HighCurY;
+    yrng := YHigh(chan%) - YLow(chan%);
+    LowCurY := YLow(chan%) + yrng * 0.3;
+    HighCurY := YHigh(chan%) - yrng * 0.3;
+    ChanHide(-1); ChanShow(chan%);
+    HCursorDelete(-1);
+    Unts$ := MChanUnits$(chan%);
+    if Unts$ = "mV" then
+        LowCurY := -40;
+        HighCurY := 0;
+    endif;
+    HCursorNew(chan%, LowCurY); HCursorNew(chan%, HighCurY);
+end
+
+
 proc setchantitle(inchan%, outchan%, appendstring$)
     var tmpchantit$;
     tmpchantit$ := ChanTitle$(inchan%);
+    TrimRight(tmpchantit$);
     tmpchantit$ := Print$("%s_%s",Left$(tmpchantit$,5),appendstring$);
     ChanTitle$(outchan%,tmpchantit$);
+end
+
+func MChanUnits$(chan%)
+    var NoWhtUnts$;
+    NoWhtUnts$ := ChanUnits$(chan%);
+    TrimRight(NoWhtUnts$);
+    return NoWhtUnts$
 end

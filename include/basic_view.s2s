@@ -2,7 +2,7 @@
 ''' because of the toolbar functions it works on globals'''
 ''' these globals are named starting with a G...'''
 var GVt%;
-var GChanList%[20];
+var GChanList%[30];
 var GSlctChan%[20];
                                                                     
 '''HANDLE MAIN VIEW'''
@@ -17,8 +17,7 @@ ChanList(GSlctChan%[], 65536);
 
 'Restore the original view                                     
 RestoreStartView();
-                                                                                  
-
+                                
 proc RestoreStartView()                                                                      
     View(GVt%);         
     FrontView(GVt%);

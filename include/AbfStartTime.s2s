@@ -1,33 +1,50 @@
 'Make an includable for getting the start time of an smr file from an abf 1.8 header'
+'Because the stupid DOS pipe sucks, I have hard coded the get_abf_start_spk2.py script
+'  to write a text file to: %SPKTMP%\TmpAbfStartTime.txt this is the file I will pick
+'  up, but the god damn FileOpen function needs to have \\ instead of \, so right now 
+'  the file open is hard coded. 
+
+#include "WinPathEscape.s2s" 'brings in PathEscape$(Str$) converting \ to \\ 
 
 proc AbfStartTime(vh%, FileTimeVect%[])
 
     'Get Smr name'
     var fname$;
-    fname$ := FileName$();
+    fname$ := FileName$();  
 
     'Command Name Vars
-    var PythonProgName$ := "get_abf_start.py";
+    var PythonProgName$ := "get_abf_start_spk2.py";
     'var PythonProgName$ := "test.py";
-    var TmpFName$ := "tmp.txt";
+    var TmpFName$ := Print$("%s\\TmpAbfStartTime.txt", System$("SPKTMP"));
+    PrintLog("Temp Fname:\n %s\n", TmpFName$);
     var CmbndCmd$;
     var ProgHnd%;
     var ProSt%;
     
     'Make Cmd for DOS
-CmbndCmd$ := Print$("cmd /c %s \"%s\" > %s", PythonProgName$, fname$, TmpFName$);  
+    PrintLog("Whats wrong\n");
+    PrintLog("%s\n", FilePath$());
+    PrintLog("file name:\n");
+    PrintLog("%s\n", fname$);
+
+    CmbndCmd$ := Print$("cmd /c %s \"%s\"", PythonProgName$, fname$);  
+    PrintLog("Command:\n");
+    PrintLog("%s\n", CmbndCmd$);
+    
     'Run command, and wait for it to finish
-    ProgHnd% := ProgRun(CmbndCmd$);
-    YieldSystem(4);
+    ProgHnd% := ProgRun(CmbndCmd$, 1);
+    YieldSystem(2);
+    Yield(2);
     ProSt% := ProgStatus(ProgHnd%);
-    YieldSystem(4);
-    Yield(4);
-
-
+    
     'Pick up script output from text 
     var fhandle%;
-    var fyear%, fmonth%, fday%, fhour%, fmin%, fsec%, fmicrosec%;
-    fhandle% := FileOpen(TmpFName$, 8);
+
+    'god dame path needs to be escaped here this thing sucks'
+    var EscpdName$;
+    PrintLog("FO:\n %s\n", PathEscape$(TmpFName$));
+    EscpdName$ := PathEscape$(TmpFName$);
+    fhandle% := FileOpen(EscpdName$, 8);
     View(fhandle%);
     Read(FileTimeVect%[0:7]);
     View(vh%);
