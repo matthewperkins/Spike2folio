@@ -1,0 +1,50 @@
+'includable for finding a channel with a specific name
+
+'function returns -1 if chan not found, returns 
+proc FindChanName(name$, found%[])
+    var allchans%[200], i%;
+    var cntr%;
+    var chantit$;
+    var mtch%;
+    var lname$;
+    ' make case insensitive by lower casing all strings
+    lname$ := LCase$(name$);
+    ChanList(allchans%[]);
+    ' init counter of cSpc to 0, in case there are no matches
+    found%[0] := 0;
+    for i% := 1 to allchans%[0] do
+        chantit$ := LCase$(ChanTitle$(allchans%[i%]));
+        mtch% := InStr(chantit$, lname$);
+        if mtch% then
+            cntr% := cntr% + 1;
+            found%[0] := cntr%;
+            found%[cntr%] := allchans%[i%];
+        endif;
+next;
+end;
+
+
+'Want to have CBI2 and EN stims named by convention:
+
+' convention will be:
+'  cbi2_stim    00    01           # marker channel ChanKind 5
+'  cbi2_stim     |||||             # event channel  ChanKind 2
+
+'  enp_stim     00    01           # marker channel ChanKind 5
+'  enp_stim      |||||             # event channel  ChanKind 2
+
+
+proc FilterChanType(cSpc%[], Kind%)
+    var i%, cntr%, numchans%;
+    numchans% := cSpc%[0];
+
+    'reset 0 position counter
+    cSpc%[0] := 0;
+    for i% := 1 to numchans% do
+        if Kind% = ChanKind(cSpc%[i%]) then
+            cntr% := cntr% + 1;
+            cSpc%[0] := cntr%;
+            cSpc%[cntr%] := cSpc%[i%];
+        endif;
+next;
+end;
