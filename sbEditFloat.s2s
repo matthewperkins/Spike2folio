@@ -1,11 +1,4 @@
-'edit items
 #include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
-
-var TMarkFeature%, MarkFeature%, features%[10], FeatureCurs%;
-var MinBurstInterval := 5; '5 seconds is good for excitability tests
-
-'EDIT FUNC WILL HAVE TIME PASSED TO IT, AND ALL CHANNELS THAT ARE SELECTED WILL HAVE THAT TIME ADDED.
-'NO VALIDATIONS, CHANNELS THAT ARE SELECTED BUT ARE NOT EVENT CHANNELS WILL JUST BE IGNORED.
 
 'SELECT CHANNELS FOR EDITING 
 
@@ -20,9 +13,44 @@ ChngEdtChns%();
 Interact("Select a single event chan to for jumping", 1023, 0, "&O Okay");
 SetJmpChn%();
 
-'FUNCS AND PROCS FOR SELECTING CHANS
-'have to decide how to handle non-memchans
-'i think dup as mem channel than delete orig
+
+'use marker code 0 0 0 0 for condition start
+var startcode%[4];
+ArrConst(startcode%[], 0);
+                                                
+'use marker code 1 0 0 0 for condition END
+var endcode%[4];
+ArrConst(endcode%[], 0);
+endcode%[0] := 1;
+
+'PUT LABELED CURSORS IN VIEW
+var FeatureCurs%;
+CursorDelete(-1);
+FeatureCurs% := CursorNew();
+CursorLabel(4, FeatureCurs%,"Feature Cursor"); 
+CursorLabelPos(FeatureCurs%,50);
+makeeventcursors(3);
+
+ToolbarClear();
+ToolbarSet(13, "G JmpChn||Set a channel for jumping around", SetJmpChn%);
+ToolbarSet(12, "&C Chng||Change set of channels you are editing, highlight then click", ChngEdtChns%);
+ToolbarSet(11, "&U DlBtwn||Delete between del1 and del2", delspksbtw%);
+ToolbarSet(10, "&N MkEnd||Make End: make the mark nrst featr crs an end", MkEnd%);
+ToolbarSet(9, "&Y  MkStr||Make Start: make the mark nearest the feature cursor a start", MkStart%);
+ToolbarSet(8 , "&J frwd||jump forward", nexttest%);
+ToolbarSet(7 , "&K rvsr||jump backward", lasttest%);
+ToolbarSet(6 , "&F frwd||draw forward", forwarddraw%);
+ToolbarSet(5 , "&R rvsr||draw backward", backwarddraw%);
+ToolBarSet(4 , "&E addSTART||Add Condition Start at Cursor", AddCondStart%);
+ToolBarSet(3 , "&P addEND||Add a Condition End at Cursor", AddCondEnd%);
+ToolBarSet(2 , "&I del||Delete last Feature Item before Feature Cursor", Del%);
+ToolBarSet(1 , "&L save||save eventchannels and leave",outie%);
+ToolbarEnable(1,1);
+Toolbar("",1);
+
+''''''''''''''''''FUNCS AND PROCS FOR SELECTING CHANS'''''''''''''''
+''' non memchannel are copied to a mem channel than original is deleted
+''' they are not saved again on exit
 
 proc GrbEvntChns(SlctChn%[], EvntChn%[]);
     var i%, kind%, NmEvChns% := 0;
@@ -81,46 +109,11 @@ proc ChngClr(cSpc%[], clr%)
     next;
 end;
 
-'use marker code 0 0 0 0 for condition start
-var startcode%[4];
-ArrConst(startcode%[], 0);
-                                                
-'use marker code 1 0 0 0 for condition END
-var endcode%[4];
-ArrConst(endcode%[], 0);
-endcode%[0] := 1;
 
-'PUT LABELED CURSORS IN VIEW
-CursorDelete(-1);
-FeatureCurs% := CursorNew();
-CursorLabel(4, FeatureCurs%,"Feature Cursor"); 
-CursorLabelPos(FeatureCurs%,50);
-makeeventcursors(3);
-
-ToolbarClear();
-ToolbarSet(13, "G JmpChn||Set a channel for jumping around", SetJmpChn%);
-ToolbarSet(12, "&C Chng||Change set of channels you are editing, highlight then click", ChngEdtChns%);
-ToolbarSet(11, "&U DlBtwn||Delete between del1 and del2", delspksbtw%);
-ToolbarSet(10, "&N MkEnd||Make End: make the mark nrst featr crs an end", MkEnd%);
-ToolbarSet(9, "&Y  MkStr||Make Start: make the mark nearest the feature cursor a start", MkStart%);
-ToolbarSet(8 , "&J frwd||jump forward", nexttest%);
-ToolbarSet(7 , "&K rvsr||jump backward", lasttest%);
-ToolbarSet(6 , "&F frwd||draw forward", forwarddraw%);
-ToolbarSet(5 , "&R rvsr||draw backward", backwarddraw%);
-ToolBarSet(4 , "&E addSTART||Add Condition Start at Cursor", AddCondStart%);
-ToolBarSet(3 , "&P addEND||Add a Condition End at Cursor", AddCondEnd%);
-ToolBarSet(2 , "&I del||Delete last Feature Item before Feature Cursor", Del%);
-ToolBarSet(1 , "&L save||save eventchannels and leave",outie%);
-ToolbarEnable(1,1);
-Toolbar("",1);
-
-'Don't do saving in this script, use the script bar save chan script instead.
-    
-'TOOLBAR FUNCTION FOR ADDING & RMVING PRO STARTS, ENDS AND RETR ENDS
+'''''''''''''''''TOOLBAR FUNCTIONS ''''''''''''''''''''''
 'THESE WILL WORK ON THE GLOBAL Cspc%[] MemChan%[]
-'A Special Tool bar function will change the identity of channel being edited
-
-'next thing to do is to rewrite these tool bar functions so that they iterate over the selected memchans, and act on all the channels
+'NOTE THESE DEPEND ON SOME OTHER GLOBELS
+var MarkFeature%;
 
 func MkEnd%()
 var i%;
