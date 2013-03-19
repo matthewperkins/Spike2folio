@@ -1,13 +1,23 @@
 #include "include\basic_view.s2s"      'this will bring in two globals: GVt%, GChanList%[], GSlctChan%[];
 #include "include\DeleteNear.s2s"
 
+'SELECT CHANNELS FOR Deleting Stim Artifacts Near
+
+var GSlctChns%[31];
+var GEvntChns%[31];
+var InitChns%[31];
+var MemChns%[31][10];  ' this will function like an undo latter?
+var GMemChnCurr% := -1; ' this will be and index for the second [][i] index of MemChns%[][]
+var JmpChn%[2]; 
+
 'Select chans to destim
 Interact("Select channels to delete near", 1+2+4+8+16+32+64+128+256+512,0,"&O Okay");
-ChanList(GSlctChan%[], 65536); '65536 excludes non-selected channels
+ChanList(GSlctChns%[], 65536); '65536 excludes non-selected channels
+SetDelChns%();
 
 'select the Event channel that will guide where to delete
 var SlctChn%[2], GuideChan%;
-Interact("Select chan event channel around which to delete", 1023, 0, "&O Okay");
+Interact("Select chan event channel to guide deletions", 1023, 0, "&O Okay");
 ChanList(SlctChn%, 65536);
 GuideChan% := SlctChn%[1];
 
@@ -15,8 +25,186 @@ GuideChan% := SlctChn%[1];
 var TPad;
 TPad := Input("Give a time padding value", 0.002);
 
-var i%;
-for i% := 1 to GSlctChan%[0] do
-    DeleteNear(GuideChan%, GSlctChan%[i%], TPad);
-next;
+'Set up two MemChans that will hold events used to signal times relative to the guide channel
+var TmPrior%, TmPosterior%;
+TmPrior% := MemChan(2);
+ChanTitle$(TmPrior%, "Lead");
+TmPosterior% := MemChan(2);
+ChanTitle$(TmPosterior%, "Follow");
 
+'an unindexed array that will hold times to be scoured relative to the guide channel
+var FeatureCurs%;
+
+ChanShow(TmPrior%);
+ChanShow(TmPosterior%);
+CursorDelete(-1);
+FeatureCurs% := CursorNew();
+CursorLabel(4, FeatureCurs%, "TmCur");
+
+ToolbarClear();
+ToolbarSet(8, "&Q Quit", outie%);
+ToolbarSet(7, "&A TmAdd||Add a time that will be deleted relative to the guide", TmAdd%);
+ToolbarSet(6, "&O TmDel||Remove a time that would have been deleted relative to the guide", TmDel%);
+ToolbarSet(5, "&C ChngDelChan||Change set of channels you are editing, highlight then click", SetDelChns%);
+ToolbarSet(4, "&E ChngGuideChan||Change the guide channel you are editing, highlight then click", SetGuidChn%);
+ToolbarSet(3, "&D D3Lt3|| Delete!" , MPDelete%);
+Toolbarset(2, "&U Undo|| Undo Deletion", MPUndo%);
+ToolBarSet(1 , "&S Save||save eventchannels",save%);
+ToolbarEnable(1,1);
+Toolbar("",1);
+
+func TmAdd%()
+    var FeaCurTime, i%;
+    FeaCurTime := Cursor(FeatureCurs%);
+    ChanList(SlctChn%[], 65536);
+    MemSetItem(SlctChn%[1], 0, FeaCurTime);
+    Draw();
+    return(1);
+end
+
+func TmDel%()
+    var FeaCurTime, i%;
+    FeaCurTime := Cursor(FeatureCurs%);
+    ChanList(SlctChn%[], 65536);
+    MemDeleteTime(SlctChn%[1], 0, FeaCurTime, 0.01);
+    Draw();
+    return(1);
+end
+
+func SetDelChns%()
+    ChanList(InitChns%[], 65536); '65536 excludes non-selected channels
+    DupForUndo(InitChns%[], MemChns%[][]);
+    return (1);
+end
+
+func SetGuidChn%()
+    ChanList(SlctChn%[], 65536);
+    GuideChan% := SlctChn%[1];
+    return (1);
+end
+
+func MPUndo%()
+    if (GMemChnCurr%>0) then
+        ChanHide(MemChns%[][GMemChnCurr%]);
+        GMemChnCurr% := GMemChnCurr% - 1;
+        ChanShow(MemChns%[][GMemChnCurr%]);
+    else
+        Message("%s", "End of Undos?");
+    endif;
+    return (1);
+end
+
+func MPDelete%()
+    'collect the prior and posterior times into a single array
+    var TmpTime := 0;
+    var ScourLen% := 0;
+    var aScour[20];
+
+    'collect the prior events
+    while (TmpTime>=0) do
+        TmpTime := NextTime(TmPrior%, TmpTime);
+        if (TmpTime>0) then
+            aScour[ScourLen%] := TmpTime - NextTime(GuideChan%, TmpTime);
+            ScourLen% := ScourLen% + 1;
+        endif;
+    wend;
+
+    'rewind TmpTime and collect the posterior events
+    TmpTime := 0;
+    while (TmpTime>=0) do
+        TmpTime := NextTime(TmPosterior%, TmpTime);
+        if (TmpTime>0) then
+            aScour[ScourLen%] := TmpTime - LastTime(GuideChan%, TmpTime);
+            ScourLen% := ScourLen% + 1;
+        endif;
+    wend;
+
+    ' now time for the actual deletion
+    var i%;
+    for i% := 1 to MemChns%[0][GMemChnCurr%] do
+        ArDeleteNear(GuideChan%, MemChns%[i%][GMemChnCurr%], aScour[], ScourLen%, TPad);
+    next;
+    return (1);
+end
+
+
+func save%()
+    var i%;
+    var SvdChns%[31];
+    ChanDelete(InitChns%[]);
+    for i% := 1 to MemChns%[0][GMemChnCurr%] do
+        SvdChns%[i%] := ChanSave(MemChns%[i%][GMemChnCurr%], 0);
+        SvdChns%[0] := SvdChns%[0] + 1;
+    next;
+    ChanShow(SvdChns%[]);
+    return(1);
+end
+
+func outie%()
+    ChanDelete(TmPrior%); 
+    ChanDelete(TmPosterior%);
+    return (0);
+end
+
+func DupForUndo(GSlctChns%[], MemChns%[][]);
+    var j%, i%;
+    GMemChnCurr% := GMemChnCurr% + 1;
+    GrbEvntChns(GSlctChns%[], GEvntChns%[]);
+    MemChns%[0][GMemChnCurr%] := GEvntChns%[0];
+    for i% := 1 to GEvntChns%[0] do
+        MemChns%[i%][GMemChnCurr%] := CopyWave%(GEvntChns%[i%]);
+    next;
+    ChanShow(MemChns%[][GMemChnCurr%]);
+    if (GMemChnCurr%>0) then 
+        'hide previous channels
+        ChanHide(MemChns%[][GMemChnCurr%-1]);
+    else
+        ChanHide(InitChns%[]);
+    endif;
+    ChanShow(MemChns%[][GMemChnCurr%]);
+    return GMemChnCurr%;
+end
+
+proc GrbEvntChns(SlctChn%[], GEvntChns%[]);
+    var i%, kind%, NmEvChns% := 0;
+    ArrConst(GEvntChns%[], 0);
+    ChanList(SlctChn%[], 65536);
+    for i% := 1 to SlctChn%[0] do
+        if (IsEvntLk%(SlctChn%[i%])) then
+            NmEvChns% := NmEvChns% + 1;
+            GEvntChns%[0] := NmEvChns%;
+            GEvntChns%[NmEvChns%] := SlctChn%[i%];
+        endif;
+    next;
+end;
+    
+func IsEvntLk%(chan%)
+    var kind%;
+    kind% := ChanKind(chan%);
+    docase
+        case kind%=2 then return 1;
+        case kind%=2 then return 1;
+        case kind%=4 then return 1;
+        case kind%=5 then return 1;
+        case kind%=8 then return 1;
+        else return 0;
+    endcase;
+end;
+
+proc ChngClr(cSpc%[], r, g, b)
+    var i%;
+    for i% := 1 to cSpc%[0] do
+        ChanColourSet(cSpc%[i%], 1, r, g, b);
+    next;
+end;
+
+func CopyWave%(chan%) 
+    var mc%;
+    mc% := MemChan(0, chan%);                'Create waveform channel
+    if mc%>0 then                            'Created OK?
+       ChanComment$(mc%, "Copy of channel "+Str$(chan%));
+       MemImport(mc%, chan%, 0, MaxTime());  'Copy data
+       ChanShow(mc%);                        'display new channel
+    endif;
+    return mc%; 'Return the new memory channel number
+end;

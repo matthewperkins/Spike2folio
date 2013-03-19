@@ -11,3 +11,16 @@ proc DeleteNear(DelGuideChan%, EditChan%, TPadSec)
         MemDeleteTime(EditChan%, 3, (DelGuideArray[i%] - TPadSec), (DelGuideArray[i%] + TPadSec));
     next
 end
+
+proc ArDeleteNear(DelGuideChan%, EditChan%, ScourArray[], ScourLen%, TPadSec)
+    var DelGuideArray[100000], NumDel%, i%, j%;
+    var t1, t2;
+    NumDel% := ChanData(DelGuideChan%, DelGuideArray[], 0, MaxTime());
+    for i% := 0 to NumDel%-1 do
+        for j% := 0 to ScourLen% do
+            t1 := DelGuideArray[i%] + ScourArray[j%] - TPadSec;
+            t2 := DelGuideArray[i%] + ScourArray[j%] + TPadSec;
+            MemDeleteTime(EditChan%, 3, t1, t2);
+        next;
+    next
+end
