@@ -22,7 +22,7 @@
 '''END FILE NAMES PREP'''
 
 '''vars for measures'''
-    var stepstart, stepend, vstprmp, vstpi, vstpdelt, current, fspkwdth;
+    var stepstart, stepend, vstprmp, vstpi, vstpdelt, current, HoldCurr, CurrDelta, fspkwdth;
     var GRMP;
     var numspks%, spklaten, trsharry[200], tau;
 
@@ -112,7 +112,9 @@ proc mkmeasurs(chanvolts%,chancurrent%,chanspks%)
     vstprmp := ChanMeasure(chanvolts%,2,stepstart-avgover, stepstart);
     vstpi := ChanMeasure(GChan%,2,stepend-avgover, stepend);
     vstpdelt := vstpi - vstprmp;
+    HoldCurr := ChanMeasure(chancurrent%, 2, stepstart-avgover, stepstart - 0.001); ' give a small pad on the current measure
     current := ChanMeasure(chancurrent%,2,stepstart, stepend);
+    CurrDelta := current - HoldCurr;
     numspks% := ChanData(chanspks%, trsharry[], stepstart, stepend);
     if (numspks%) then 
         spklaten := NextTime(chanspks%, stepstart);
@@ -132,7 +134,9 @@ proc printmeasurs(delim$)
     Print("%.4f%s",vstprmp,delim$);
     Print("%.4f%s",vstpi,delim$);
     Print("%.4f%s",vstpdelt,delim$);
+    Print("%.4f%s",HoldCurr,delim$);
     Print("%.4f%s",current,delim$);
+    Print("%.4f%s",CurrDelta,delim$);
     Print("%d%s",numspks%,delim$);
     Print("%.4f%s",spklaten,delim$);
     Print("%.4f",fspkwdth);
@@ -187,7 +191,9 @@ proc PrntHeaderLast(delim$, NumHdrLns%)
     Print("%s%s","vstp_rmp",delim$);
     Print("%s%s","vstp_i",delim$);
     Print("%s%s","vstp_delt",delim$);
-    Print("%s%s","crnt_mntr",delim$);
+    Print("%s%s","hold_nA",delim$);
+    Print("%s%s","step_nA",delim$);
+    Print("%s%s","delta_nA",delim$);
     Print("%s%s","num_spks",delim$);
     Print("%s%s","fspk_lat",delim$);
     Print("%s","fspk_wdth");

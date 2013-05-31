@@ -1,0 +1,59 @@
+'use marker code 0 0 0 0 for condition start
+var startcode%[4];
+ArrConst(startcode%[], 0);
+                                                
+'use marker code 1 0 0 0 for condition END
+var endcode%[4];
+ArrConst(endcode%[], 0);
+endcode%[0] := 1;
+
+func GetNextCode(chan%, time, code%[])
+    var nextcode%[4];
+    var codematch% := 1; 'codematch will be zero when match found
+    while (codematch%=1) do
+        time := NextTime(chan%,time,nextcode%);
+        ArrSub(nextcode%[], code%[]);
+        codematch% := ArrSum(nextcode%[]);
+        if (time=-1) then break endif;
+    wend;
+    return time
+end
+
+func GetLastCode(chan%, time, code%[])
+    var nextcode%[4];
+    var codematch% := 1; 'codematch will be zero when match found
+    while (codematch%=1) do
+        time := LastTime(chan%,time,nextcode%);
+        ArrSub(nextcode%[], code%[]);
+        codematch% := ArrSum(nextcode%[]);
+        if (time=-1) then break endif;
+    wend;
+    return time
+end
+
+func CountBrsts(chan%, StartT, EndT)
+    var NumEnds%, NumStarts%, NumBrsts%;
+    MarkMask(chan%, -1, 1, -1);  'Set all codes for all layers
+
+    'Mask Burst Ends
+    MarkMask(chan%, 0, 0, 1);
+    NumStarts% := Count(chan%, StartT, EndT);
+
+    'Mask Burst Starts
+    MarkMask(chan%, -1, 1, -1);  'Set all codes for all layers
+    MarkMask(chan%, 0, 0, 0);
+    NumEnds% := Count(chan%, StartT, EndT);
+
+    docase 
+        case(NumStarts%=NumEnds%) then
+            return (NumStarts%)
+        case (NumStarts%>NumEnds%) then
+            message("Too many starts, - %d starts, only %d ends", NumStarts%, NumEnds%);
+            return (-1);
+        else 
+            message("Too many ends, - %d ends, only %d starts", NumEnds%, NumStarts%);
+            return (-1);
+    endcase;
+end
+
+

@@ -13,7 +13,6 @@ ChngEdtChns%();
 Interact("Select a single event chan to for jumping", 1023, 0, "&O Okay");
 SetJmpChn%();
 
-
 'use marker code 0 0 0 0 for condition start
 var startcode%[4];
 ArrConst(startcode%[], 0);
