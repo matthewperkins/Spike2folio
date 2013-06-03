@@ -1,7 +1,7 @@
 #include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
+#include "include\marker_code_iter.s2s"  'this will bring in startcode%[4], endcode%[4] GetNextCode(), GetLastCode(), and CountBrsts()
 
 'SELECT CHANNELS FOR EDITING 
-
 var SlctChn%[31];
 var EvntChn%[31];
 var MemChns%[31];
@@ -13,15 +13,6 @@ ChngEdtChns%();
 Interact("Select a single event chan to for jumping", 1023, 0, "&O Okay");
 SetJmpChn%();
 
-'use marker code 0 0 0 0 for condition start
-var startcode%[4];
-ArrConst(startcode%[], 0);
-                                                
-'use marker code 1 0 0 0 for condition END
-var endcode%[4];
-ArrConst(endcode%[], 0);
-endcode%[0] := 1;
-
 'PUT LABELED CURSORS IN VIEW
 var FeatureCurs%;
 CursorDelete(-1);
@@ -31,11 +22,13 @@ CursorLabelPos(FeatureCurs%,50);
 makeeventcursors(3);
 
 ToolbarClear();
-ToolbarSet(13, "G JmpChn||Set a channel for jumping around", SetJmpChn%);
+ToolbarSet(15, "&H hide||hide selected cannels", HideChans%);
+ToolbarSet(14, "&A show orig||show all channels visible from script start", RestoreChan%);
+ToolbarSet(13, "&G JmpChn||Set a channel for jumping around", SetJmpChn%);
 ToolbarSet(12, "&C Chng||Change set of channels you are editing, highlight then click", ChngEdtChns%);
 ToolbarSet(11, "&U DlBtwn||Delete between del1 and del2", delspksbtw%);
 ToolbarSet(10, "&N MkEnd||Make End: make the mark nrst featr crs an end", MkEnd%);
-ToolbarSet(9, "&Y  MkStr||Make Start: make the mark nearest the feature cursor a start", MkStart%);
+ToolbarSet(9,  "&Y  MkStr||Make Start: make the mark nearest the feature cursor a start", MkStart%);
 ToolbarSet(8 , "&J frwd||jump forward", nexttest%);
 ToolbarSet(7 , "&K rvsr||jump backward", lasttest%);
 ToolbarSet(6 , "&F frwd||draw forward", forwarddraw%);
@@ -50,6 +43,7 @@ Toolbar("",1);
 ''''''''''''''''''FUNCS AND PROCS FOR SELECTING CHANS'''''''''''''''
 ''' non memchannel are copied to a mem channel than original is deleted
 ''' they are not saved again on exit
+
 
 proc GrbEvntChns(SlctChn%[], EvntChn%[]);
     var i%, kind%, NmEvChns% := 0;
@@ -83,6 +77,10 @@ proc DupDelNonMem(ChanSpc%[],MemChans%[]);
         if ChanSpc%[i%]<400 then
             MemChans%[i%] := CopyWave%(ChanSpc%[i%]);
             ChanDelete(ChanSpc%[i%]);
+            'this is kludgy, need to make sure the jump channel is followed into new mem channel
+            if ChanSpc%[i%]=JmpChn%[1] then
+                JmpChn%[1]:=MemChans%[i%];
+            endif;
         else
             MemChans%[i%] := ChanSpc%[i%];
         endif;
@@ -112,8 +110,6 @@ end;
 '''''''''''''''''TOOLBAR FUNCTIONS ''''''''''''''''''''''
 'THESE WILL WORK ON THE GLOBAL Cspc%[] MemChan%[]
 'NOTE THESE DEPEND ON SOME OTHER GLOBELS
-var MarkFeature%;
-
 func MkEnd%()
 var i%;
 var cur1, before, after, closest;
@@ -239,15 +235,15 @@ func nexttest%()
     'if there is no exct test start mark in view, default to 20 % offset
     var RelPosWin, rngtmp;
     rngtmp := XHigh() - XLow();
-    RelPosWin := XLow() - NextTime(MarkFeature%, XLow(), startcode%);
+    RelPosWin := XLow() - GetNextCode(JmpChn%[1], XLow(), startcode%[]);
     if (Abs(RelPosWin) > rngtmp) then
         RelPosWin := rngtmp * -0.2;
     endif;
 
     'find next time and draw window and cursors
     var ttmp;
-    ttmp := GetNextExctCode(MarkFeature%, XLow(), startcode%);
-    ttmp := GetNextExctCode(MarkFeature%, ttmp, startcode%);
+    ttmp := GetNextCode(JmpChn%[1], XLow(), startcode%[]);
+    ttmp := GetNextCode(JmpChn%[1], ttmp, startcode%[]);
     ttmp := ttmp + RelPosWin;
     Cursor(FeatureCurs%,(ttmp+RelPosFeat));
     Cursor(8,(ttmp+RelPosDel));Cursor(9,(ttmp+RelPosDel2));
@@ -268,7 +264,7 @@ func lasttest%()
     'if there is no exct test start mark in view, default to 20 % offset
     var RelPosWin, rngtmp;
     rngtmp := XHigh() - XLow();
-    RelPosWin := XLow() - NextTime(MarkFeature%, XLow(), startcode%[]);
+    RelPosWin := XLow() - GetNextCode(JmpChn%[1], XLow(), startcode%[]);
     if (Abs(RelPosWin) > rngtmp) then
         RelPosWin := rngtmp * -0.2;
     endif;
@@ -276,7 +272,7 @@ func lasttest%()
 
     'find next time and draw window and cursors
     var ttmp;
-    ttmp := GetLastExctCode(MarkFeature%, XLow(), startcode%[]);
+    ttmp := GetLastCode(JmpChn%[1], XLow(), startcode%[]);
     ttmp := ttmp + RelPosWin;
     Cursor(FeatureCurs%,(ttmp+RelPosFeat));
     Cursor(8,(ttmp+RelPosDel));Cursor(9,(ttmp+RelPosDel2));
@@ -296,7 +292,6 @@ end
 func SetJmpChn%()
     ChanList(JmpChn%[], 65536);
     ChngClr(JmpChn%[], 20);
-    MarkFeature% := JmpChn%[1];
     return(1);
 end
 
@@ -304,28 +299,14 @@ func outie%()
     return(0);
 end
 
-func GetNextExctCode(chan%, time, code%[])
-    var nextcode%[4];
-    var codematch% := 1; 'codematch will be zero when match found
-    while (codematch%=1) do
-        time := NextTime(chan%,time,nextcode%);
-        ArrSub(nextcode%[], code%[]);
-        codematch% := ArrSum(nextcode%[]);
-        if (time=-1) then break endif;
-    wend;
-    return time
+func HideChans%()
+    ChanHide(-3);
+    return (1)
 end
 
-func GetLastExctCode(chan%, time, code%[])
-    var nextcode%[4];
-    var codematch% := 1; 'codematch will be zero when match found
-    while (codematch%=1) do
-        time := LastTime(chan%,time,nextcode%);
-        ArrSub(nextcode%[], code%[]);
-        codematch% := ArrSum(nextcode%[]);
-        if (time=-1) then break endif;
-    wend;
-    return time
+func RestoreChan%()
+    RestoreStartView();
+    return(1)
 end
 
 Proc makeeventcursors(n%)

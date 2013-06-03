@@ -11,7 +11,7 @@ func GetNextCode(chan%, time, code%[])
     var nextcode%[4];
     var codematch% := 1; 'codematch will be zero when match found
     while (codematch%=1) do
-        time := NextTime(chan%,time,nextcode%);
+        time := NextTime(chan%,time, nextcode%[]);
         ArrSub(nextcode%[], code%[]);
         codematch% := ArrSum(nextcode%[]);
         if (time=-1) then break endif;
@@ -23,7 +23,7 @@ func GetLastCode(chan%, time, code%[])
     var nextcode%[4];
     var codematch% := 1; 'codematch will be zero when match found
     while (codematch%=1) do
-        time := LastTime(chan%,time,nextcode%);
+        time := LastTime(chan%,time,nextcode%[]);
         ArrSub(nextcode%[], code%[]);
         codematch% := ArrSum(nextcode%[]);
         if (time=-1) then break endif;
@@ -46,14 +46,17 @@ func CountBrsts(chan%, StartT, EndT)
 
     docase 
         case(NumStarts%=NumEnds%) then
-            return (NumStarts%)
+            'looks good pass
         case (NumStarts%>NumEnds%) then
             message("Too many starts, - %d starts, only %d ends", NumStarts%, NumEnds%);
-            return (-1);
+            NumStarts% := -1;
         else 
             message("Too many ends, - %d ends, only %d starts", NumEnds%, NumStarts%);
-            return (-1);
+            NumStarts% := -1;
     endcase;
+    'Unset mask (ideally would save and restore mask, but Fthat)    
+    MarkMask(chan%, -1, 1, -1);  'Set all codes for all layers
+    return (NumStarts%);
 end
 
 
