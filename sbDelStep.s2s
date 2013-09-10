@@ -1,0 +1,99 @@
+#include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
+
+var SlctChn%[2];
+var MrkrStepChan%;
+var DataStepChan%;
+var DataStepChanMem%;
+
+Interact("Select marker 00 01 chan with step delineation", 1023, 0, "&O Okay");
+ChanList(SlctChn%, 65536);
+MrkrStepChan% := SlctChn%[1];
+
+Interact("Select data chan to be destepified", 1023, 0, "&O Okay");
+ChanList(SlctChn%, 65536);
+DataStepChan% := SlctChn%[1];
+DataStepChanMem% := CopyWave%(DataStepChan%);
+
+'use marker code 0 0 0 0 for condition start
+var startcode%[4];
+ArrConst(startcode%[], 0);
+                                                
+'use marker code 1 0 0 0 for condition END
+var endcode%[4];
+ArrConst(endcode%[], 0);
+endcode%[0] := 1;
+
+func GetNextExctCode(chan%, time, code%[])
+    var nextcode%[4];
+    var codematch% := 1; 'codematch will be zero when match found
+    while (codematch%=1) do
+        time := NextTime(chan%,time,nextcode%);
+        ArrSub(nextcode%[], code%[]);
+        codematch% := ArrSum(nextcode%[]);
+        if (time=-1) then break endif;
+    wend;
+    return time
+end
+
+func GetLastExctCode(chan%, time, code%[])
+    var nextcode%[4];
+    var codematch% := 1; 'codematch will be zero when match found
+    while (codematch%=1) do
+        time := LastTime(chan%,time,nextcode%);
+        ArrSub(nextcode%[], code%[]);
+        codematch% := ArrSum(nextcode%[]);
+        if (time=-1) then break endif;
+    wend;
+    return time
+end
+
+proc RmvStp(Chan%, StepStart, StepEnd, PreStartmsec, PreStartPadmsec, PostStartmsec, PostStartPadmsec)
+    var prelevel, postlevel;
+    var stepdata[1000000];
+    var stepdatasize%;
+    var deltalevel;
+    var PreStartSec, PreStartPadSec;
+    var PostStartSec, PostStartPadSec;
+    
+    PreStartSec := PreStartmsec / 1000.0;
+    PreStartPadSec := PreStartPadmsec / 1000.0;
+    
+    PostStartSec := PostStartmsec / 1000.0;
+    PostStartPadSec := PostStartPadmsec / 1000.0;
+
+    var prepaddedStart := StepStart - PreStartPadSec;
+    var postpaddedStart := StepStart + PostStartPadSec;
+
+    prelevel := ChanMeasure(Chan%, 2, prepaddedStart - PreStartSec, prepaddedStart);
+    postlevel :=  ChanMeasure(Chan%, 2, postpaddedStart, postpaddedStart + PostStartPadSec);
+    deltalevel := postlevel - prelevel;
+
+    stepdatasize% := ChanData(Chan%, stepdata[], StepStart, StepEnd);
+    ArrSub(stepdata[], deltalevel);
+    ChanWriteWave(Chan%, stepdata[0:stepdatasize%], StepStart);
+end;
+
+func CopyWave%(chan%) 
+    var mc%;
+    mc% := MemChan(0, chan%);                'Create waveform channel
+    if mc%>0 then                            'Created OK?
+       ChanComment$(mc%, "Copy of channel "+Str$(chan%));
+       MemImport(mc%, chan%, 0, MaxTime());  'Copy data
+       ChanShow(mc%);                        'display new channel
+    endif;
+    return mc%; 'Return the new memory channel number
+end;
+
+var looptime := 0;
+var stepofftime := 0;
+
+While looptime>=0 do
+    looptime := GetNextExctCode(MrkrStepChan%, looptime , startcode%[]);
+    stepofftime := GetNextExctCode(MrkrStepChan%, looptime, endcode%[]);
+    RmvStp(DataStepChanMem%, looptime, stepofftime, 20, 5, 80, 90);
+Wend;
+
+
+
+    
+

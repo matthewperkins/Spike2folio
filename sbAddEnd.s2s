@@ -1,0 +1,97 @@
+#include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
+#include "include\marker_code_iter.s2s"  'this will bring in startcode%[4], endcode%[4] GetNextCode(), GetLastCode(), and CountBrsts()
+
+'SELECT CHANNELS FOR EDITING 
+var SlctChn%[31];
+var EvntChn%[31];
+var MemChns%[31];
+
+Interact("Select chans add ends", 1023, 0, "&O Okay");
+ChngEdtChns%();
+
+''''''''''''''''''FUNCS AND PROCS FOR SELECTING CHANS'''''''''''''''
+''' non memchannel are copied to a mem channel than original is deleted
+''' they are not saved again on exit
+
+proc GrbEvntChns(SlctChn%[], EvntChn%[]);
+    var i%, kind%, NmEvChns% := 0;
+    ChanList(SlctChn%[], 65536);
+    for i% := 1 to SlctChn%[0] do
+        if (IsEvntLk%(SlctChn%[i%])) then
+            NmEvChns% := NmEvChns% + 1;
+            EvntChn%[0] := NmEvChns%;
+            EvntChn%[NmEvChns%] := SlctChn%[i%];
+        endif;
+    next;
+end;
+    
+func IsEvntLk%(chan%)
+    var kind%;
+    kind% := ChanKind(chan%);
+    docase
+        case kind%=2 then return 1;
+        case kind%=2 then return 1;
+        case kind%=4 then return 1;
+        case kind%=5 then return 1;
+        case kind%=8 then return 1;
+        else return 0;
+    endcase;
+end;
+
+proc DupDelNonMem(ChanSpc%[],MemChans%[]);
+    var i%;
+    MemChans%[0] := ChanSpc%[0];
+    for i% := 1 to ChanSpc%[0] do
+        if ChanSpc%[i%]<400 then
+            MemChans%[i%] := CopyWave%(ChanSpc%[i%]);
+            ChanDelete(ChanSpc%[i%]);
+        else
+            MemChans%[i%] := ChanSpc%[i%];
+        endif;
+    next;
+    ChanShow(MemChans%[]);
+end
+    
+func CopyWave%(chan%) 
+    var mc%;
+    mc% := MemChan(0, chan%);                'Create waveform channel
+    if mc%>0 then                            'Created OK?
+       ChanComment$(mc%, "Copy of channel "+Str$(chan%));
+       MemImport(mc%, chan%, 0, MaxTime());  'Copy data
+       ChanShow(mc%);                        'display new channel
+    endif;
+    return mc%; 'Return the new memory channel number
+end;
+
+proc ChngClr(cSpc%[], clr%)
+    var i%;
+    for i% := 1 to cSpc%[0] do
+        ChanColour(cSpc%[i%], 1, clr%);
+    next;
+end;
+
+func ChngEdtChns%()
+    ChngClr(MemChns%[],1);
+    ArrConst(EvntChn%[], 0); ArrConst(MemChns%[],0);
+    GrbEvntChns(SlctChn%[], EvntChn%[]);
+    DupDelNonMem(EvntChn%[], MemChns%[]);
+    ChngClr(MemChns%[],16);
+    return(1);
+end
+
+''''''''''''''''''END FUNCS AND PROCS FOR SELECTING CHANS'''''''''''''''
+
+'''''''''''''''''' MAIN ''''''''''''''''''''''''''''''''''''''''''''''''
+var lag;
+var j%;
+var t := 0;
+lag := Input("Duration|Num Sec Between End and Start", 0.1);
+for j% := 1 to MemChns%[1] do
+    while (t >= 0) do
+        t := GetNextCode(MemChns%[j%], t, startcode%[]);
+        if (t<0) then break endif;
+        MemSetItem(MemChns%[j%], 0, t+lag, endcode%[]);
+    wend;
+next;
+
+

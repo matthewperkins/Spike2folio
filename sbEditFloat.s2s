@@ -281,8 +281,8 @@ func lasttest%()
 end
 
 func ChngEdtChns%()
-    ChngClr(MemChns%,1);
-    ArrConst(EvntChn%[], 0); ArrConst(MemChns%,0);
+    ChngClr(MemChns%[],1);
+    ArrConst(EvntChn%[], 0); ArrConst(MemChns%[],0);
     GrbEvntChns(SlctChn%[], EvntChn%[]);
     DupDelNonMem(EvntChn%[], MemChns%[]);
     ChngClr(MemChns%[],16);

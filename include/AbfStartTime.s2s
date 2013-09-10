@@ -11,9 +11,10 @@ proc AbfStartTime(vh%, FileTimeVect%[])
     'Get Smr name'
     var fname$;
     fname$ := FileName$();  
-
+    var LabPyScriptDir$;
+    
     'Command Name Vars
-    var PythonProgName$ := "get_abf_start_spk2.py";
+    var PythonProgName$ := Print$("\"%s\\get_abf_start_spk2.py\"", System$("LABPYSCRIPTDIR"));
     'var PythonProgName$ := "test.py";
     var TmpFName$ := Print$("%s\\TmpAbfStartTime.txt", System$("SPKTMP"));
     PrintLog("Temp Fname:\n %s\n", TmpFName$);
@@ -27,7 +28,7 @@ proc AbfStartTime(vh%, FileTimeVect%[])
     PrintLog("file name:\n");
     PrintLog("%s\n", fname$);
 
-    CmbndCmd$ := Print$("cmd /c %s \"%s\"", PythonProgName$, fname$);  
+    CmbndCmd$ := Print$("cmd /c python %s \"%s\"", PythonProgName$, fname$);  
     PrintLog("Command:\n");
     PrintLog("%s\n", CmbndCmd$);
     

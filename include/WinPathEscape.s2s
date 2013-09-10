@@ -33,12 +33,10 @@ func PathEscape$(WinStr$)
 end
 
 'test debug stuff
-var WinStr$, OutStr$;
-WinStr$ := System$("SPKTMP");
-PrintLog(WinStr$);
-PrintLog("\n");
-OutStr$ := PathEscape$(WinStr$);
-PrintLog(OutStr$);
-
-    
+'var WinStr$, OutStr$;
+'WinStr$ := System$("SPKTMP");
+'PrintLog(WinStr$);
+'PrintLog("\n");
+'OutStr$ := PathEscape$(WinStr$);
+'PrintLog(OutStr$);    
     
