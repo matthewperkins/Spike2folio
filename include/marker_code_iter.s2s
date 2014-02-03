@@ -10,9 +10,10 @@ endcode%[0] := 1;
 func GetNextCode(chan%, time, code%[])
     var nextcode%[4];
     var codematch% := 1; 'codematch will be zero when match found
-    while (codematch%=1) do
+    while (codematch%>0) do
         time := NextTime(chan%,time, nextcode%[]);
         ArrSub(nextcode%[], code%[]);
+        abs(nextcode%[]);
         codematch% := ArrSum(nextcode%[]);
         if (time=-1) then break endif;
     wend;
@@ -22,9 +23,10 @@ end
 func GetLastCode(chan%, time, code%[])
     var nextcode%[4];
     var codematch% := 1; 'codematch will be zero when match found
-    while (codematch%=1) do
+    while (codematch%>0) do
         time := LastTime(chan%,time,nextcode%[]);
         ArrSub(nextcode%[], code%[]);
+        abs(nextcode%[]);
         codematch% := ArrSum(nextcode%[]);
         if (time=-1) then break endif;
     wend;
