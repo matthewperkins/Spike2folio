@@ -242,8 +242,12 @@ func nexttest%()
 
     'find next time and draw window and cursors
     var ttmp;
-    ttmp := GetNextCode(JmpChn%[1], XLow(), startcode%[]);
-    ttmp := GetNextCode(JmpChn%[1], ttmp, startcode%[]);
+    if (GetNextCode(JmpChn%[1], XLow(), startcode%[]) > XHigh()) then
+        ttmp := GetNextCode(JmpChn%[1], XLow(), startcode%[]);
+    else
+        ttmp := GetNextCode(JmpChn%[1], XLow(), startcode%[]);
+	ttmp := GetNextCode(JmpChn%[1], ttmp, startcode%[]);
+    endif;
     ttmp := ttmp + RelPosWin;
     Cursor(FeatureCurs%,(ttmp+RelPosFeat));
     Cursor(8,(ttmp+RelPosDel));Cursor(9,(ttmp+RelPosDel2));

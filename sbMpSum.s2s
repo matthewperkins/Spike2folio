@@ -1,10 +1,7 @@
-'protraction channel
-'retraction channel
-'first select protractions and retraction channels
-'SELECT i2 burst channel 
 #include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
-#include "include\AbfStartTime.s2s"    'bring in proc AbfStartTime(vh%, FileTimeVect%[7]), has python script dependency "get_abf_start.py", and Win send .py to python.exe
+#include "include\AbfStartTime.s2s"    'bring in proc AbfStartTime(vh%, FileTimeVect%[7]), has python script dependency "get_abf_start.py"
 #include "include\PrintHeaderStim.s2s" 'bring in PrintHeaderStim(EvntChn%, MrkChan%, delim$), where EvntChn and MrkChn are En Stim or Cbi2 stim
+#include "include\marker_code_iter.s2s"
 
 var protraction%;
 var SnglSlctChn%[2];
@@ -74,15 +71,6 @@ ArrConst(aLnCntrs%[1:], LnCntr%);
     PrepHeaderBtm(GDelim$, aLnCntrs%[], MsrmntViews%[]);
 '''END FILE NAMES PREP'''
 
-'use marker code 0 0 0 0 for burst start
-var startcode%[4];
-ArrConst(startcode%[], 0);
-
-'use marker code 1 0 0 0 for burst END
-var endcode%[4];
-ArrConst(endcode%[], 0);
-endcode%[0] := 1;
-
 'loop over protraction starts
 var NumProStarts%;
 var i%;
@@ -91,13 +79,13 @@ var proend := 0;
 var restart := 0;
 var reend :=0;
 
-NumProStarts%:= Count(protraction%,0,MaxTime()) / 2 ;
+NumProStarts%:= CountBrsts(protraction%,0,MaxTime());
 
 for i% :=1 to NumProStarts% do
-    prostart := GetNextExctCode(protraction%, prostart, startcode%[]);
-    proend := GetNextExctCode(protraction%, prostart, endcode%[]);
-    restart := GetNextExctCode(retraction%, prostart, startcode%[]);
-    reend := GetNextExctCode(retraction%, restart, endcode%[]);
+    prostart := GetNextCode(protraction%, prostart, startcode%[]);
+    proend := GetNextCode(protraction%, prostart, endcode%[]);
+    restart := GetNextCode(retraction%, prostart, startcode%[]);
+    reend := GetNextCode(retraction%, restart, endcode%[]);
     docase
         case ((restart - proend) < 0.7) then
             'case solo protraction
@@ -201,30 +189,6 @@ proc PrepHeaderCond(CndChns%[], Views%[], aLnCntrs%[], Delim$)
     next;
 end
 
-func GetNextExctCode(chan%, time, code%[])
-    var nextcode%[4];
-    var codematch% := 1; 'codematch will be zero when match found
-    while (codematch%=1) do
-        time := NextTime(chan%,time,nextcode%);
-        ArrSub(nextcode%[], code%[]);
-        codematch% := ArrSum(nextcode%[]);
-        if (time=-1) then break endif;
-    wend;
-    return time;
-end;
-
-func GetLastExctCode(chan%, time, code%[])
-    var nextcode%[4];
-    var codematch% := 1; 'codematch will be zero when match found
-    while (codematch%=1) do
-        time := LastTime(chan%,time,nextcode%);
-        ArrSub(nextcode%[], code%[]);
-        codematch% := ArrSum(nextcode%[]);
-        if (time=-1) then break endif;
-    wend;
-    return time;
-end;        
-
 Proc RecordMotorProgram(MultSlctChn%[], MsrmntViews%[], trigchan%, prostart, proend, restart, reend)
     var i%;
     for i% := 1 to MultSlctChn%[0] do
@@ -242,8 +206,8 @@ func MkWrtMPMsrs(chan%, vh%, trigstim%, prostart, proend, restart, reend)
     var ChnNm$;
     ChnNm$ := ChanTitle$(chan%);
     Trim(ChnNm$);
-    MPprolatOn := GetLastExctCode(trigstim%, prostart, startcode%[]); 
-    MPprolatOff := GetLastExctCode(trigstim%, prostart, endcode%[]); 
+    MPprolatOn := GetLastCode(trigstim%, prostart, startcode%[]); 
+    MPprolatOff := GetLastCode(trigstim%, prostart, endcode%[]); 
     if (MPprolatOff>MPprolatOn) then
         MPprolatOn := -1; 'this is a spontaneous program
     else MPprolatOn := prostart - MPprolatOn; endif 

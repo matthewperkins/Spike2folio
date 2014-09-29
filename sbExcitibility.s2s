@@ -4,13 +4,13 @@
 #include "include\AbfStartTime.s2s"    'bring in proc AbfStartTime(vh%, FileTimeVect%[7]), has python script dependency "get_abf_start.py", and Win send .py to python.exe
 #include "include\PrintHeaderStim.s2s" 'bring in PrintHeaderStim(EvntChn%, MrkChan%, delim$), where EvntChn and MrkChn are En Stim or Cbi2 stim
 #include "include\FindChanName.s2s"    'this brings in FindChanName(name$, found%[]) and FilterChanType(cSpc%[], Kind%)
+#include "include\marker_code_iter.s2s"
 
 '''SCRIPT CONSTANTS'''
     'average the membrane potiential before the current pulse, over this many seconds
     var avgover;
     avgover := 0.2;
 '''END SCRIPT CONSTANTS'''
-
 
 '''FILE NAMES PREP, and FILE INF PREP'''
     var GFName$, GDirString$, GFullFName$;
@@ -88,21 +88,12 @@ RestoreStartView();
 'Find RMP
 GRMP := FindRMP(GChan%);
     
-'use marker code 0 0 0 0 for condition start
-var condstartcode%[4];
-ArrConst(condstartcode%[], 0);
-
-'use marker code 1 0 0 0 for condition END
-var condendcode%[4];
-ArrConst(condendcode%[], 0);
-condendcode%[0] := 1;
-
 var numpulses%;
-numpulses% := Count(GCrrEvntChan%,0,MaxTime()) / 2;
+numpulses% := CountBrsts(GCrrEvntChan%, 0, MaxTime());
 
 for i% := 1 to numpulses% do
-    stepstart := NextTime(GCrrEvntChan%, stepend, condstartcode%[]);
-    stepend := NextTime(GCrrEvntChan%, stepstart, condendcode%[]);
+    stepstart := GetNextCode(GCrrEvntChan%, stepend, startcode%[]);
+    stepend := GetNextCode(GCrrEvntChan%, stepstart, endcode%[]);
     mkmeasurs(GChan%, GCrrChan%, GEventChan%);
     View(GOutCSVVh%).printmeasurs(GDelim$);
 next;
