@@ -1,0 +1,106 @@
+'want to read abf headers into variable to use in spike scripts
+'Get SMR and ABF name'
+#include "basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
+
+var FileTimeVect%[7]; 
+AbfStartTime(GVt%, FileTimeVect%[]);
+
+proc AbfStartTime(vh%, FileTimeVect%[])
+    var smrname$, abfname$, abfnoname$;
+    var LenFname%;
+    smrname$ := FileName$(); 
+    FilePathSet(smrname$, 0);
+    FilePathSet(smrname$, 1);
+    LenFname% := Len(smrname$);
+    abfname$ := Print$("%s%s", Left$(smrname$, LenFname% - 3), "abf");
+    abfnoname$ := ParentDir$(smrname$);
+    PrintLog(abfname$);
+
+    'Read the File ID information from the ABF file 
+    var abfFH%, abfinsamedir%;
+    'abfinsamedir% := FileList(abfname$, -1);
+    abfFH% := FileOpen(abfname$, 9, 0);
+    if abfFH%<0 then
+        abfFH% := FileOpen(Print$("%s%s", abfnoname$, "*.abf"), 9, 0);
+    endif;
+    View(abfFH%);
+
+    'variable for storing file info
+    var lFileSignature%, fFileVersionNumber, nOperationMode%, lActualAcqLength%;
+    var nNumPointsIgnored%, lActualEpisodes%, lFileStartDate%, lFileStartTime%;
+    var lStopwatchTime%, fHeaderVersionNumber, nFileType%, nMSBinFormat%, nFileStartMillisecs%;
+
+    BReadSize(4, lFileSignature%); 'int32
+    BReadSize(4, fFileVersionNumber); 'float32
+    BReadSize(2, nOperationMode%); 'int16
+    BReadSize(4, lActualAcqLength%); 'np.int32
+    BReadSize(2, nNumPointsIgnored%); 'int16
+    BReadSize(4, lActualEpisodes%); 'int32
+    BReadSize(4, lFileStartDate%); 'int32
+    BReadSize(4, lFileStartTime%); 'int32
+    BReadSize(4, lStopwatchTime%); 'int32
+    BReadSize(4, fHeaderVersionNumber); 'float32
+    BReadSize(2, nFileType%); 'int16
+    BReadSize(2, nMSBinFormat%); 'int16
+            
+    BSeek(366); 'seek ahead to read file start milliseconds
+    BReadSize(2, nFileStartMillisecs%); 'int16
+
+    'convert the number to string
+    var yyyymmdd$, year%, month%, day%, hour%, minute%, second%, microsecond%;
+    yyyymmdd$ := Str$(lFileStartDate%, 8, 8);
+    year% := Val(Mid$(yyyymmdd$, 1, 4)); 
+    month% := Val(Mid$(yyyymmdd$, 5, 2));
+    day% := Val(Mid$(yyyymmdd$, 7, 2));
+
+    'lFileStartTime is in seconds. do some division for time
+
+    hour% := lFileStartTime% / (60*60);
+    minute% := (lFileStartTime% mod (60*60)) / 60;
+    second% := (lFileStartTime% mod (60*60)) mod 60;
+    microsecond% := nFileStartMillisecs% * 1000;
+    FileTimeVect%[0] := year%;
+    FileTimeVect%[1] := month%;
+    FileTimeVect%[2] := day%;
+    FileTimeVect%[3] := hour%;
+    FileTimeVect%[4] := minute%;
+    FileTimeVect%[5] := second%;
+    FileTimeVect%[6] := microsecond%;
+    View(vh%);
+end
+
+func ParentDir$(WinStr$)
+    var ParDir$, LftMch$, EndMch$;
+    var match% := 1;
+    var matches%[100];
+    var matchcount% := 0;
+    while match% do
+        'work from left to right, find dir sep
+        match% := InStr(WinStr$, "\\");
+    
+        'No match, at end of string, affix remainder break exit
+        if (match%=0) then
+            ParDir$:=Mid$(ParDir$, 0, matches%[matchcount%]);
+            break
+        endif;
+        
+        'Yes match
+        matchcount% := matchcount% +1;
+        matches%[0] := matchcount%;
+        'Save chars left of and including path sep
+        LftMch$ := Left$(WinStr$,match%);
+        
+        'If first match just print left of sep
+        if (matchcount%=0) then
+            ParDir$ := LftMch$;
+            matches%[matchcount%] := match%
+        else
+        'Print left of sep, (Appending it to growing string) 
+            ParDir$ := Print$("%s%s", ParDir$, LftMch$);
+            matches%[matchcount%] := matches%[matchcount%-1] + match%
+        endif;
+        'Next delete the substring just converted, including the dir sep
+        WinStr$ := DelStr$(WinStr$, 0, match%);
+    wend;
+    return ParDir$
+end

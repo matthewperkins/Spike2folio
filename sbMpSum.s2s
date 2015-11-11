@@ -3,7 +3,7 @@
 'first select protractions and retraction channels
 'SELECT i2 burst channel 
 #include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
-#include "include\AbfStartTime.s2s"    'bring in proc AbfStartTime(vh%, FileTimeVect%[7]), has python script dependency "get_abf_start.py", and Win send .py to python.exe
+#include "include\ReadAbfHeader.s2s"    'bring in proc AbfStartTime(vh%, FileTimeVect%[7]), has python script dependency "get_abf_start.py", and Win send .py to python.exe
 #include "include\PrintHeaderStim.s2s" 'bring in PrintHeaderStim(EvntChn%, MrkChan%, delim$), where EvntChn and MrkChn are En Stim or Cbi2 stim
 
 var protraction%;
