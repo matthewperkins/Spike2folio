@@ -5,7 +5,7 @@
 #include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
 #include "include\ReadAbfHeader.s2s"    'bring in proc AbfStartTime(vh%, FileTimeVect%[7]), has python script dependency "get_abf_start.py", and Win send .py to python.exe
 #include "include\PrintHeaderStim.s2s" 'bring in PrintHeaderStim(EvntChn%, MrkChan%, delim$), where EvntChn and MrkChn are En Stim or Cbi2 stim
-
+#include "include\WinPathEscape.s2s"   'bring in ParentDir$
 var protraction%;
 var SnglSlctChn%[2];
 
@@ -61,7 +61,7 @@ ArrConst(aLnCntrs%[1:], LnCntr%);
     var NumHeaders%;
     GFullFName$ := FileName$();
     GFName$ := Print$("%s%s",FileName$(3),FileName$(4));
-    GDirString$ := Print$("%s\%s",FileName$(2),"..\\indiv_cells\\");
+    GDirString$ := ParentDir$(FileName$());
     AbfStartTime(GVt%, GFileTimeVec%[]);
 
     'CREATE measurement views/files
