@@ -1,0 +1,67 @@
+'want to have a protraction level channel, and a retraction level channel.
+
+'the protraction level channel will be automatically created by burst make on i2
+'the rectraciton level channel will be created using B48 or B67's post retraction burst
+'consider adding a hyper retraction phase too, (not now though)
+
+'edit items
+
+#include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
+#include "include\marker_code_iter.s2s"     'this will bring in marker chan function GetNextCode, GetLastCode, and CountBrsts
+
+var rtrct%;
+var SnglSlctChn%[2];
+
+'SELECT i2 burst channel 
+Interact("Select chan retraction burst channel", 65536, 0, "&O Okay");
+ChanList(SnglSlctChn%, 65536);
+rtrct% := SnglSlctChn%[1];
+
+'construct retractions
+var restart := 0;
+var reend := 0;
+var hyprrestart := 0;
+var hyprreend := 0;
+var retraction%;
+var hyperretraction%;
+var protraction%;
+var i%;
+hyperretraction% := MemChan(5);
+
+'get the number of Retractions:
+var NumRtrcts%;
+NumRtrcts%:= CountBrsts(rtrct%, 0, MaxTime());
+
+'START TO GET into trouble when next protraction burst comes before retraction,
+'need to handle this case
+var nxtprostart;
+var RetrctCurs%;
+
+'copy all protraction ends into retraction channel as starts 
+'mask starts on protraction channel
+MarkMask(rtrct%,0,0,1);
+MemImport(hyperretraction%, rtrct%, 0, MaxTime());
+MarkSet(hyperretraction%, 0, MaxTime(), NACode%[]);
+'unmask protraction
+MarkMask(rtrct%,-1,1,-1);
+DrawMode(hyperretraction%, 15);
+
+AddChanToStartView(hyperretraction%);
+AddChanToStartView(rtrct%);
+ChanTitle$(hyperretraction%,"HyperRetraction");
+RestoreStartView();
+
+' do the rest in my edit float script
+
+func CopyWave%(chan%) 
+    var mc%, TmpDrawMode%;
+    mc% := MemChan(0, chan%);                'Create waveform channel
+    TmpDrawMode% := DrawMode(chan%);
+    if mc%>0 then                            'Created OK?
+       ChanComment$(mc%, "Copy of channel "+Str$(chan%));
+       MemImport(mc%, chan%, 0, MaxTime());  'Copy data
+    endif;
+    DrawMode(mc%, TmpDrawMode%);
+    return mc%; 'Return the new memory channel number
+end;
+    
