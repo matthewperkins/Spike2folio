@@ -1,11 +1,16 @@
-'use marker code 0 0 0 0 for condition start
+'use marker code 1 0 0 0 for condition start
 var startcode%[4];
 ArrConst(startcode%[], 0);
+startcode%[0] := 1;
                                                 
-'use marker code 1 0 0 0 for condition END
+'use marker code 0 0 0 0 for condition END
 var endcode%[4];
 ArrConst(endcode%[], 0);
-endcode%[0] := 1;
+
+'use marker code 2 0 0 0 for NO hypertraction
+var NACode%[4];
+ArrConst(NACode%[], 0);
+NACode%[0] := 2;
 
 func GetNextCode(chan%, time, code%[])
     var nextcode%[4];
@@ -38,12 +43,12 @@ func CountBrsts(chan%, StartT, EndT)
     MarkMask(chan%, -1, 1, -1);  'Set all codes for all layers
 
     'Mask Burst Ends
-    MarkMask(chan%, 0, 0, 1);
+    MarkMask(chan%, 0, 0, 0);
     NumStarts% := Count(chan%, StartT, EndT);
 
     'Mask Burst Starts
     MarkMask(chan%, -1, 1, -1);  'Set all codes for all layers
-    MarkMask(chan%, 0, 0, 0);
+    MarkMask(chan%, 0, 0, 1);
     NumEnds% := Count(chan%, StartT, EndT);
 
     docase 

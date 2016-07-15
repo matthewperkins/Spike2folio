@@ -39,16 +39,21 @@ var RetrctCurs%;
 
 'copy all protraction ends into retraction channel as starts 
 'mask starts on protraction channel
-MarkMask(protraction%,0,0,0);
+MarkMask(protraction%,0,0,1);
 MemImport(retraction%, protraction%, 0, MaxTime());
 MarkSet(retraction%, 0, MaxTime(), startcode%[]);
 'unmask protraction
 MarkMask(protraction%,-1,1,-1);
+'just make sure retraction is drawing as a state
 
 AddChanToStartView(retraction%);
 AddChanToStartView(protraction%);
 ChanTitle$(protraction%,"protraction");
 ChanTitle$(retraction%,"retraction");
+DrawMode(protraction%,15,0,0,2);
+DrawMode(retraction%,15,0,0,2);
+MarkShow(protraction%,0,1);
+MarkShow(retraction%,0,1);
 RestoreStartView();
 
 ' do the rest in my edit float script
@@ -60,6 +65,7 @@ func CopyWave%(chan%)
        ChanComment$(mc%, "Copy of channel "+Str$(chan%));
        MemImport(mc%, chan%, 0, MaxTime());  'Copy data
     endif;
+    DrawMode(mc%, 15, 0, 0, 2);
+    MarkShow(mc%,0,1);
     return mc%; 'Return the new memory channel number
 end;
-    

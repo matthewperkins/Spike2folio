@@ -3,6 +3,7 @@
 ''' these globals are named starting with a G...'''
 var GVt%;
 var GChanList%[30];
+var GChanListDrawMode%[30];
 var GSlctChan%[20];
                                                                     
 '''HANDLE MAIN VIEW'''
@@ -15,6 +16,12 @@ View(GVt%);
 ChanList(GChanList%[], 2048);
 ChanList(GSlctChan%[], 65536);
 
+'Save the draw mode of each channel
+var Lk% := 0;
+for Lk% := 1 to GChanList%[0] do
+    GChanListDrawMode%[Lk%] := DrawMode(GChanList%[Lk%]);
+next;
+
 'Restore the original view                                     
 RestoreStartView();
                                 
@@ -23,6 +30,13 @@ proc RestoreStartView()
     FrontView(GVt%);
     ChanHide(-1);
     ChanShow(GChanList%[]);                                                                 
+    DrawAll();
+end
+
+proc RestoreStartDrawMode()  
+    for Lk% := 1 to GChanListDrawMode%[0] do
+        DrawMode(GChanList%[Lk%], GChanListDrawMode%[Lk%]);
+    next;
     DrawAll();
 end
 

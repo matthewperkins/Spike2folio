@@ -3,26 +3,27 @@
 'first select protractions and retraction channels
 'SELECT i2 burst channel 
 #include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
-#include "include\ReadAbfHeader.s2s"    'bring in proc AbfStartTime(vh%, FileTimeVect%[7]), has python script dependency "get_abf_start.py", and Win send .py to python.exe
 #include "include\PrintHeaderStim.s2s" 'bring in PrintHeaderStim(EvntChn%, MrkChan%, delim$), where EvntChn and MrkChn are En Stim or Cbi2 stim
 #include "include\WinPathEscape.s2s"   'bring in ParentDir$
+#include "include\AbfStartTime.s2s"
+#include "include\marker_code_iter.s2s"
 var protraction%;
 var SnglSlctChn%[2];
 
 'SELECT protraction
-Interact("Select protraction 00 01 (burst) channel", 65536, 0, "&O Okay");
+Interact("Select protraction 10 00 (burst) channel", 65536, 0, "&O Okay");
 ChanList(SnglSlctChn%, 65536);
 protraction%:= SnglSlctChn%[1];
 
 'SELECT a retraction channel
 var retraction%;
-Interact("Select retraction 00 01 (burst) channel", 65536, 0, "&O Okay");
+Interact("Select retraction 10 00 (burst) channel", 65536, 0, "&O Okay");
 ChanList(SnglSlctChn%, 65536);
 retraction%:= SnglSlctChn%[1];
 
 'SELECT a trig stim
 var stimulustrigger%;
-Interact("Select stimulus 00 01 (burst) channel", 65536, 0, "&O Okay");
+Interact("Select stimulus 10 00 (burst) channel", 65536, 0, "&O Okay");
 ChanList(SnglSlctChn%, 65536);
 stimulustrigger%:= SnglSlctChn%[1];
 
@@ -74,15 +75,6 @@ ArrConst(aLnCntrs%[1:], LnCntr%);
     PrepHeaderBtm(GDelim$, aLnCntrs%[], MsrmntViews%[]);
 '''END FILE NAMES PREP'''
 
-'use marker code 0 0 0 0 for burst start
-var startcode%[4];
-ArrConst(startcode%[], 0);
-
-'use marker code 1 0 0 0 for burst END
-var endcode%[4];
-ArrConst(endcode%[], 0);
-endcode%[0] := 1;
-
 'loop over protraction starts
 var NumProStarts%;
 var i%;
@@ -94,17 +86,13 @@ var reend :=0;
 NumProStarts%:= Count(protraction%,0,MaxTime()) / 2 ;
 
 for i% :=1 to NumProStarts% do
-    prostart := GetNextExctCode(protraction%, prostart, startcode%[]);
-    proend := GetNextExctCode(protraction%, prostart, endcode%[]);
-    restart := GetNextExctCode(retraction%, prostart, startcode%[]);
-    reend := GetNextExctCode(retraction%, restart, endcode%[]);
-    docase
-        case ((restart - proend) < 0.7) then
-            'case solo protraction
-            RecordMotorProgram(MultSlctChn%[], MsrmntViews%[], stimulustrigger%, prostart, proend, restart, reend);
-        case ((restart - proend) >= 0.7) then
-            'case full motor program
-    endcase;        
+    prostart := GetNextCode(protraction%, prostart, startcode%[]);
+    proend := GetNextCode(protraction%, prostart, endcode%[]);
+    restart := GetNextCode(retraction%, prostart, startcode%[]);
+    reend := GetNextCode(retraction%, restart, endcode%[]);
+    if (Abs(restart - proend) < 1) then
+        RecordMotorProgram(MultSlctChn%[], MsrmntViews%[], stimulustrigger%, prostart, proend, restart, reend);
+    endif;
 next;
 
 SvCls(MultSlctChn%[], MsrmntViews%[]);

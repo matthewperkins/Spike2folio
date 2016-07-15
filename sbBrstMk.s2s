@@ -1,3 +1,4 @@
+
 'edit items
 
 #include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
@@ -18,6 +19,26 @@ TMarkFeature% := SnglSlctChn%[1];
 MarkFeature% := MemChan(5);
 BurstMake(MarkFeature%,TMarkFeature%,0,MaxTime(),MinBurstInterval, MaxFirstIsi, MinEvntNum%);
 
+'Want to invert the channel and set the DrawMode to 'State' like
+var codematch% := 1; 'codematch will be zero when match found
+var nextcode%[4];
+var j% := 0;
+var time := 0;
+time := 0;
+while time>=0 do
+    time := NextTime(MarkFeature%,time,nextcode%[]);
+    ArrMul(nextcode%[], -1);
+    ArrAdd(nextcode%[], 1);
+    MarkEdit(MarkFeature%, time, nextcode%[]);
+wend;
+' this method of inversion completely inverts the array 0 0 0 0 becomes 1 1 1 1 
+' I want 0 0 0 0 to be 1 0 0 0, so just munually zero remaning codes
+var ZeroCode%[4];
+ZeroCode%[0] := -1;
+ArrConst(ZeroCode%[1:], 0);
+MarkSet(MarkFeature%, 0, MaxTime(), ZeroCode%[]);
+DrawMode(MarkFeature%, 15, 0, 0, 2);
+
 var BurstName$;
 
 BurstName$ := ChanTitle$(TMarkFeature%);
@@ -25,5 +46,7 @@ BurstName$ := Print$("%s%s", BurstName$, "Brst");
 ChanTitle$(MarkFeature%, BurstName$);
 MarkFeature% := ChanSave(MarkFeature%,0);
 AddChanToStartView(MarkFeature%);
+DrawMode(MarkFeature%, 15, 0, 0, 2);
+MarkShow(MarkFeature%,0,1);
 RestoreStartView();
     
