@@ -89,12 +89,26 @@ proc DupDelNonMem(ChanSpc%[],MemChans%[]);
 end
     
 func CopyWave%(chan%) 
-    var mc%;
+    var mc%, TmpDrawMode%, TmpDotSize%, TmpBinSize%, TmpFlags%;
+    TmpDrawMode% := DrawMode(chan%);
+    TmpDotSize% := DrawMode(chan%, -2);
+    TmpBinSize% := DrawMode(chan%, -3);
+    TmpFlags% := DrawMode(chan%, -15);  
+    if TmpDotSize% = -1 then
+        TmpDotSize% := 0
+    endif;
+    if TmpBinSize% = -1 then
+        TmpBinSize% := 0
+    endif;
+    if TmpFlags% = -1 then
+        TmpFlags% := 0
+    endif;
     mc% := MemChan(0, chan%);                'Create waveform channel
     if mc%>0 then                            'Created OK?
        ChanComment$(mc%, "Copy of channel "+Str$(chan%));
        MemImport(mc%, chan%, 0, MaxTime());  'Copy data
        ChanShow(mc%);                        'display new channel
+       DrawMode(mc%, TmpDrawMode%, TmpDotSize%, TmpBinSize%, TmpFlags%);
     endif;
     return mc%; 'Return the new memory channel number
 end;
