@@ -123,15 +123,6 @@ next;
 View(GOutCSVVh%).PrntHeaderLast(GDelim$, NumHdrLns%);
 RestoreStartView();
 
-'use marker code 0 0 0 0 for condition start
-var condstartcode%[4];
-ArrConst(condstartcode%[], 0);
-
-'use marker code 1 0 0 0 for condition END
-var condendcode%[4];
-ArrConst(condendcode%[], 0);
-condendcode%[0] := 1;
-
 var numpulses%;
 numpulses% := Count(GPrtEvntChan%,0,MaxTime()) / 2;
 
@@ -358,15 +349,15 @@ func nexttest%()
     'if there is no exct test start mark in view, default to 20 % offset
     var RelPosWin, rngtmp;
     rngtmp := XHigh() - XLow();
-    RelPosWin := XLow() - GetNextCode(GPrtEvntChan%, XLow(), condstartcode%[]);
+    RelPosWin := XLow() - GetNextCode(GPrtEvntChan%, XLow(), startcode%[]);
     if (Abs(RelPosWin) > rngtmp) then
         RelPosWin := rngtmp * -0.2;
     endif;
 
     'find next time and draw window and cursors
     var ttmp;
-    ttmp := GetNextCode(GPrtEvntChan%, XLow(), condstartcode%[]);
-    ttmp := GetNextCode(GPrtEvntChan%, ttmp, condstartcode%[]);
+    ttmp := GetNextCode(GPrtEvntChan%, XLow(), startcode%[]);
+    ttmp := GetNextCode(GPrtEvntChan%, ttmp, startcode%[]);
     ttmp := ttmp + RelPosWin;
     Draw(ttmp);
     return(1);
@@ -381,7 +372,7 @@ func lasttest%()
     'if there is no exct test start mark in view, default to 20 % offset
     var RelPosWin, rngtmp;
     rngtmp := XHigh() - XLow();
-    RelPosWin := XLow() - GetNextCode(GPrtEvntChan%, XLow(), condstartcode%[]);
+    RelPosWin := XLow() - GetNextCode(GPrtEvntChan%, XLow(), startcode%[]);
     if (Abs(RelPosWin) > rngtmp) then
         RelPosWin := rngtmp * -0.2;
     endif;
@@ -389,7 +380,7 @@ func lasttest%()
 
     'find next time and draw window and cursors
     var ttmp;
-    ttmp := GetLastCode(GPrtEvntChan%, XLow(), condstartcode%[]);
+    ttmp := GetLastCode(GPrtEvntChan%, XLow(), startcode%[]);
     ttmp := ttmp + RelPosWin;
     Draw(ttmp);
     return(1);
@@ -398,14 +389,14 @@ end
 var HyprRtrctNA;
 func mkmeasurs%()
     ' Get Times and compute DP lengths
-    ProtStart := GetNextCode(GPrtEvntChan%, XLow(), condstartcode%[]);
-    ProtEnd := GetNextCode(GPrtEvntChan%, ProtStart, condendcode%[]);
-    RtrctStart := GetNextCode(GRtrctEvntChan%, ProtStart, condstartcode%[]);
-    RtrctEnd:= GetNextCode(GRtrctEvntChan%, ProtStart, condendcode%[]);
+    ProtStart := GetNextCode(GPrtEvntChan%, XLow(), startcode%[]);
+    ProtEnd := GetNextCode(GPrtEvntChan%, ProtStart, endcode%[]);
+    RtrctStart := GetNextCode(GRtrctEvntChan%, ProtStart, startcode%[]);
+    RtrctEnd:= GetNextCode(GRtrctEvntChan%, ProtStart, endcode%[]);
     ' have to do some gymnamstics here
     HyprRtrctNA:= GetNextCode(GHyperRtrctEvntChan%, ProtStart, NACode%[]);
-    HyprRtrctStart:= GetNextCode(GHyperRtrctEvntChan%, ProtStart, condstartcode%[]);
-    HyprRtrctEnd:= GetNextCode(GHyperRtrctEvntChan%, ProtStart, condendcode%[]);
+    HyprRtrctStart:= GetNextCode(GHyperRtrctEvntChan%, ProtStart, startcode%[]);
+    HyprRtrctEnd:= GetNextCode(GHyperRtrctEvntChan%, ProtStart, endcode%[]);
     if HyprRtrctNA<HyprRtrctStart then
         HyprRtrctStart:=0;
         HyprRtrctEnd:=0.02;

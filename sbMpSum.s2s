@@ -189,30 +189,6 @@ proc PrepHeaderCond(CndChns%[], Views%[], aLnCntrs%[], Delim$)
     next;
 end
 
-func GetNextExctCode(chan%, time, code%[])
-    var nextcode%[4];
-    var codematch% := 1; 'codematch will be zero when match found
-    while (codematch%=1) do
-        time := NextTime(chan%,time,nextcode%);
-        ArrSub(nextcode%[], code%[]);
-        codematch% := ArrSum(nextcode%[]);
-        if (time=-1) then break endif;
-    wend;
-    return time;
-end;
-
-func GetLastExctCode(chan%, time, code%[])
-    var nextcode%[4];
-    var codematch% := 1; 'codematch will be zero when match found
-    while (codematch%=1) do
-        time := LastTime(chan%,time,nextcode%);
-        ArrSub(nextcode%[], code%[]);
-        codematch% := ArrSum(nextcode%[]);
-        if (time=-1) then break endif;
-    wend;
-    return time;
-end;        
-
 Proc RecordMotorProgram(MultSlctChn%[], MsrmntViews%[], trigchan%, prostart, proend, restart, reend)
     var i%;
     for i% := 1 to MultSlctChn%[0] do
@@ -230,8 +206,8 @@ func MkWrtMPMsrs(chan%, vh%, trigstim%, prostart, proend, restart, reend)
     var ChnNm$;
     ChnNm$ := ChanTitle$(chan%);
     Trim(ChnNm$);
-    MPprolatOn := GetLastExctCode(trigstim%, prostart, startcode%[]); 
-    MPprolatOff := GetLastExctCode(trigstim%, prostart, endcode%[]); 
+    MPprolatOn := GetLastCode(trigstim%, prostart, startcode%[]); 
+    MPprolatOff := GetLastCode(trigstim%, prostart, endcode%[]); 
     if (MPprolatOff>MPprolatOn) then
         MPprolatOn := -1; 'this is a spontaneous program
     else MPprolatOn := prostart - MPprolatOn; endif 
