@@ -1,22 +1,119 @@
 'basic func to add current chng event
 
 #include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
-#include "include\CrrChngEvnt.s2s"    'bring in func CrrChngEvnt(LIChan%, LVChan%)
 
 var CrrChn%;
-var mVChn%;
 var SlctChn%[2];
 var CrrChnEvntChn%;
+
+'PUT LABELED CURSORS IN VIEW
+var LeftCurs%, RightCurs%;
+CursorDelete(-1);
+LeftCurs% := CursorNew();
+RightCurs% := CursorNew();
+CursorLabel(4, LeftCurs%,"Left Cursor"); 
+CursorLabel(4, RightCurs%,"Right Cursor"); 
+CursorLabelPos(LeftCurs%,50);
+CursorLabelPos(LeftCurs%,60);
 
 Interact("Select chan for current change event finding", 1023, 0, "&O Okay");
 ChanList(SlctChn%, 65536);
 CrrChn% := SlctChn%[1];
 
-Interact("Select intracell mV channel", 1023, 0, "&O Okay");
-ChanList(SlctChn%, 65536);
-mVChn% := SlctChn%[1];
-
-
-CrrChnEvntChn% := CrrChngEvnt(CrrChn%, mVChn%);
-AddChanToStartView(CrrChnEvntChn%);
+'SET UP MARKER CHANNELS
+var GOutMarker%;
+var GThresh%;
+var ThreshCur%;
+GOutMarker% := MemChan(5);
+ChanTitle$(GOutMarker%, "CurrentMarker");
+HCursorDelete(-1);
+ThreshCur% := HCursorNew(CrrChn%);
+AddChanToStartView(GOutMarker%);
 RestoreStartView();
+
+'CrrChnEvntChn% := CrrChngEvnt(CrrChn%, mVChn%);
+'Want to do this over a curse delimited range of times, using toolbar
+ToolbarClear();
+ToolbarSet(8, "&I imprt||find and import", FindAndImport%);
+ToolbarSet(7, "&U DlBtwn||Delete between del1 and del2", delbtw%);
+ToolBarSet(6, "&D del||Delete last Feature Item before Feature Cursor", Del%);
+ToolbarSet(5, "&H hide||hide selected cannels", HideChans%);
+ToolbarSet(4, "&A show orig||show all channels visible from script start", RestoreChan%);
+ToolbarSet(3, "&F frwd||draw forward", forwarddraw%);
+ToolbarSet(2, "&R rvsr||draw backward", backwarddraw%);
+
+ToolBarSet(1 , "&L leave||leave",outie%);
+ToolbarEnable(1,1);
+Toolbar("",1);
+
+'''''''''''''''''TOOLBAR FUNCTIONS ''''''''''''''''''''''
+'THESE WILL WORK ON THE GLOBAL Cspc%[] MemChan%[]
+'NOTE THESE DEPEND ON SOME OTHER GLOBELS
+func forwarddraw%()
+var ttmp, rngtmp;
+    'FIND RELATIVE POSITIONS OF CURSORS
+    var RelPosLeft, RelPosRight, RelPosRight2;
+    RelPosLeft := Cursor(LeftCurs%) - XLow();
+    RelPosRight := Cursor(RightCurs%) - XLow();
+    
+    rngtmp := XHigh()-XLow();
+    ttmp := XLow() + rngtmp*0.1;
+    Cursor(LeftCurs%,(ttmp+RelPosLeft));
+    Cursor(RightCurs%,(ttmp+RelPosRight));
+    Draw(ttmp);
+return(1);
+end
+
+func backwarddraw%()
+var ttmp, rngtmp;
+    'FIND RELATIVE POSITIONS OF CURSORS
+    var RelPosLeft, RelPosRight, RelPosRight2;
+    RelPosLeft := Cursor(LeftCurs%) - XLow();
+    RelPosRight := Cursor(RightCurs%) - XLow();
+    
+    rngtmp := XHigh()-XLow();
+    ttmp := XLow() - rngtmp*0.1;
+    Cursor(LeftCurs%,(ttmp+RelPosLeft));
+    Cursor(RightCurs%,(ttmp+RelPosRight));
+    Draw(ttmp);
+return(1);
+end
+
+func outie%()
+    return(0);
+end
+
+func HideChans%()
+    ChanHide(-3);
+    return (1)
+end
+
+func RestoreChan%()
+    RestoreStartView();
+    return(1)
+end
+
+func Del%()
+    var FeaCurTime, numitems%, i%;
+    FeaCurTime := Cursor(LeftCurs%);
+    MemDeleteTime(GOutMarker%, 0, FeaCurTime, 4);
+    Draw();
+    return(1);
+end
+
+func delbtw%()
+    var i%;
+    MemDeleteTime(GOutMarker%,3,Cursor(LeftCurs%),Cursor(RightCurs%));
+    Draw();
+    return(1);
+end
+
+func FindAndImport%()
+    var Thresh, StartTime, EndTime;
+    StartTime := Cursor(LeftCurs%);
+    EndTime := Cursor(RightCurs%);
+    Thresh := HCursor(1);
+    MemImport(GOutMarker%,CrrChn%,StartTime,EndTime,2,0.2,Thresh);
+    MemImport(GOutMarker%,CrrChn%,StartTime,EndTime,3,0.2,Thresh);
+    return 1;
+end
