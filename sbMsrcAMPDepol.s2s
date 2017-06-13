@@ -1,0 +1,80 @@
+'protraction channel
+'retraction channel
+'first select protractions and retraction channels
+'SELECT i2 burst channel 
+#include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
+#include "include\PrintHeaderStim.s2s" 'bring in PrintHeaderStim(EvntChn%, MrkChan%, delim$), where EvntChn and MrkChn are En Stim or Cbi2 stim
+#include "include\WinPathEscape.s2s"   'bring in ParentDir$
+#include "include\AbfStartTime.s2s"
+#include "include\marker_code_iter.s2s"
+
+'SELECT channel
+'PUT LABELED CURSORS IN VIEW
+var LeftCurs%, RightCurs%;
+CursorDelete(-1);
+LeftCurs% := CursorNew();
+RightCurs% := CursorNew();
+CursorLabel(4, LeftCurs%,"Left Cursor"); 
+CursorLabel(4, RightCurs%,"Right Cursor"); 
+CursorLabelPos(LeftCurs%,50);
+CursorLabelPos(LeftCurs%,60);
+
+var BurstChan%, IonoPhorChan%, SpkChan%,VmChan%;
+var SnglSlctChn%[2];
+Interact("Select (spike burst) channel", 65536, 0, "&O Okay");
+ChanList(SnglSlctChn%, 65536);
+BurstChan%:= SnglSlctChn%[1];
+
+Interact("Select (ionophoresis burst) channel, and position cursors", 65536, 0, "&O Okay");
+ChanList(SnglSlctChn%, 65536);
+IonoPhorChan%:= SnglSlctChn%[1];
+
+Interact("Select cell Spike events channel, and position cursors", 65536, 0, "&O Okay");
+ChanList(SnglSlctChn%, 65536);
+SpkChan%:= SnglSlctChn%[1];
+
+Interact("Select cell Vm channel, and position cursors", 65536, 0, "&O Okay");
+ChanList(SnglSlctChn%, 65536);
+VmChan%:= SnglSlctChn%[1];
+
+var IonoStartTime, IonoStopTime, BurstStartTime, BurstStopTime, nSpikes;
+var PostIonoBrstFreq, FSpkLat, LastSpikeTime, PreIonoVm, PostSpikeVm;
+
+PrintLog("\nIonoStartTime\tIonoStopTime\tFirstSpike\tLastSpike\t");
+PrintLog("PostIonoBurstFreq\tPreIonoVm\tPostSpikeVm\n");
+IonoStopTime := 0;
+while IonoStartTime > -1 do
+    IonoStartTime := GetNextCode(IonoPhorChan%, IonoStopTime, startcode%[]);
+    if (IonoStartTime=-1) then break endif;
+    IonoStopTime := GetNextCode(IonoPhorChan%, IonoStartTime, endcode%[]);
+    if (IonoStopTime=-1) then break endif;
+    BurstStartTime := GetNextCode(BurstChan%, IonoStartTime, startcode%[]);
+    PreIonoVm := ChanMeasure(VmChan%,2,IonoStartTime-1.1, IonoStartTime-0.1);
+    docase
+    case BurstStartTime = -1 then
+        BurstStartTime := -1;
+        BurstStopTime := -1;
+        nSpikes := 0;
+        PostIonoBrstFreq := 0;
+        FSpkLat := -1;
+        LastSpikeTime := -1;
+        PostSpikeVm := ChanMeasure(VmChan%,2,IonoStopTime + 5, IonoStopTime + 6);
+    case BurstStartTime > (IonoStartTime+10) then
+        BurstStartTime := -1;
+        BurstStopTime := -1;
+        nSpikes := 0;
+        PostIonoBrstFreq := 0;
+        FSpkLat := -1;
+        LastSpikeTime := -1;
+        PostSpikeVm := ChanMeasure(VmChan%,2,IonoStopTime + 5, IonoStopTime + 6);
+    else
+        BurstStopTime := GetNextCode(BurstChan%, IonoStartTime, endcode%[]);
+        nSpikes := Count(SpkChan%,IonoStartTime,BurstStopTime);
+        PostIonoBrstFreq := nSpikes / (BurstStopTime - BurstStartTime);
+        FSpkLat := BurstStartTime - IonoStartTime;
+        LastSpikeTime := BurstStopTime - IonoStopTime;
+        PostSpikeVm := ChanMeasure(VmChan%, 2, BurstStopTime + 0.1, BurstStopTime + 1.1);
+    endcase;
+    PrintLog("%g\t%g\t%g\t%g\t", IonoStartTime, IonoStopTime, FSpkLat, LastSpikeTime);
+    PrintLog("%g\t%g\t%g\n", PostIonoBrstFreq,PreIonoVm,PostSpikeVm);
+wend
