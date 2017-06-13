@@ -1,0 +1,42 @@
+'protraction channel
+'retraction channel
+'first select protractions and retraction channels
+'SELECT i2 burst channel 
+#include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
+#include "include\PrintHeaderStim.s2s" 'bring in PrintHeaderStim(EvntChn%, MrkChan%, delim$), where EvntChn and MrkChn are En Stim or Cbi2 stim
+#include "include\WinPathEscape.s2s"   'bring in ParentDir$
+#include "include\AbfStartTime.s2s"
+#include "include\marker_code_iter.s2s"
+var BurstChan%;
+var SnglSlctChn%[2];
+
+'SELECT channel
+'PUT LABELED CURSORS IN VIEW
+var LeftCurs%, RightCurs%;
+CursorDelete(-1);
+LeftCurs% := CursorNew();
+RightCurs% := CursorNew();
+CursorLabel(4, LeftCurs%,"Left Cursor"); 
+CursorLabel(4, RightCurs%,"Right Cursor"); 
+CursorLabelPos(LeftCurs%,50);
+CursorLabelPos(LeftCurs%,60);
+Interact("Select (burst) channel, and position cursors", 65536, 0, "&O Okay");
+ChanList(SnglSlctChn%, 65536);
+BurstChan%:= SnglSlctChn%[1];
+
+var LStartCode%[4];
+var LStopCode%[4];
+
+LStartCode%[0] := Input("Start Code",1);
+LStopCode%[0] := Input("Stop Code",0);
+var StartTime, StopTime;
+
+PrintLog("\nStartTime\tStopTime\n");
+StopTime := Cursor(1);
+while StartTime > -1 do
+    StartTime := GetNextCode(BurstChan%, StopTime, LStartCode%[]);
+    if (StartTime=-1) then break endif;
+    StopTime := GetNextCode(BurstChan%, StartTime, LStopCode%[]);
+    if (StopTime=-1) then break endif;
+    PrintLog("%g\t%g\n", StartTime,StopTime);
+wend
