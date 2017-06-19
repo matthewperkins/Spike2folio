@@ -2,7 +2,10 @@
 'need a stimulus marker channel.
 'assumes the sample rate is 5000Hz
 
-var i2chan%, bn2chan%, rnchan%, stimchan%, stims[5000], avgdart[50000], startt, endt;
+#include "include\basic_view.s2s"     'this will bring in two globals: GVt% and GChanList%[]
+#include "include\marker_code_iter.s2s"  'this will bring in startcode%[4], endcode%[4] GetNextCode(), GetLastCode(), and CountBrsts()
+
+var stims[5000], avgdart[50000];
 var stimtimeadvance, tlen%;
 var smplrate;
 var howmany%;
@@ -14,152 +17,119 @@ View(viewtemp%);         'restore the original view
 DrawAll();
 FrontView(viewtemp%);
 
+'SELECT CHANNELS
+var SnglSlctChn%[2];
+
+'STIMULUS TRIGGER
+var StimTrigChan%;
+Interact("Select event channel with stimulus triggers", 65536, 0, "&O Okay");
+ChanList(SnglSlctChn%, 65536);
+StimTrigChan%:= SnglSlctChn%[1];
+
+'NEUROGRAMS TO DEARTIFICATIFY
+var NrvChans%[10], CellChans%[10];
+var NumNrvChans%, NumCellChans%;
+Interact("select all your nerve channels to DEARTIFICATIFY", 65536, 0, "&O Okay");
+ChanList(NrvChans%[],65536);
+NumNrvChans% := NrvChans%[0];
+resize NrvChans%[NumNrvChans%+1];
+
+Interact("select all your cell channels to DEARTIFICATIFY", 65536, 0, "&O Okay");
+ChanList(CellChans%[],65536);
+NumCellChans% := CellChans%[0];
 
 CursorDelete(-1);
 CursorNew();CursorNew();
 
-Interact("DRAG THE TWO CURSORS TO DELIMIT YOUR TIME????? THEN PRESS THE TINY OKAY BUTTON!!!!!", 2);
+'DEMARK TIMES
+var startt,endt;
+Interact("DRAG THE TWO CURSORS TO DELIMIT YOUR TIME????? THEN PRESS THE TINY OKAY BUTTON!!!!!", 65536, 0, "&O Okay");
 startt := Cursor(1);
 endt := Cursor(2);
-howmany% := Input("How many channels?",3);
-
-'AUTOMATTICALLY FIND STIMULUS ONSETT AND OFFSET
-var stimeventstart%, stimeventend%;
-stimchan% := Input("What channel\n is enstim command volt?", 7);
-stimeventstart% := findstimulusstart(stimchan%);
-stimeventend% := findstimulusend(stimchan%);
 
 'FIND AVERAGE ISI, TO INDEX ARRAYS WITH
+var NumStims%;
 var avgisi, dpavgisi%, dpstimart%, timstimart, avgstimdur, minisi, minisidp%;
-smplrate := Input("what is the sample rate (Hz)", 2000); 
-stims[0] := ChanData(stimeventstart%, stims[1:4999],startt, endt);
-avgisi := findavgisi(stimeventstart%);
-minisi := findminisi(stimeventstart%);
-avgstimdur := findavgstmdur(stimeventstart%,stimeventend%);
-dpavgisi% := floor(avgisi*smplrate);
-dpstimart% := Ceil(dpavgisi%*0.99);
-timstimart := (dpavgisi%*0.99/smplrate);
+smplrate := BinSize(NrvChans%[1]);
+NumStims% := ChanData(StimTrigChan%,stims[],startt,endt);
+ArrDiff(stims[0:NumStims%]);
+avgisi := ArrSum(stims[1:NumStims%-1])/(NumStims%-1);
+ArrIntgl(stims[0:NumStims%]);
+dpavgisi% := XToBin(avgisi);
+dpstimart% := dpavgisi%-XToBin(avgisi)*0.2;
 
 'SET PADDINGS
-var leftpadmillisec, prepad, postpad, cellavgdurprcnt;
-prepad := 1; 
-postpad := 3;
-leftpadmillisec := 5;
+var leftpadmillisec, prepaddp%, postpad, cellavgdurprcnt;
+prepaddp% := 50; 
 
 'FIND THE AVERAGE PERI STIMULUS WAVE FORM, SET LEFT PAD
 var j%, outchan%, whichchan%, iscell%;
 whichchan% := 0;
-for j% := 1 to howmany% do
-    whichchan% := Input("whichchan?", whichchan%+j%);
-    iscell% := Input("is this channel a cell?", 1);
-    findavgstimart(whichchan%,avgdart[],leftpadmillisec,dpstimart%,timstimart);
+for j% := 1 to NumNrvChans% do
+    findavgstimart(NrvChans%[j%],avgdart[],prepaddp%,dpstimart%);
     tlen% := avgdart[0];
     PrintLog(avgdart[1:tlen%]);
-    outchan% := substract(whichchan%,avgdart[1:tlen%],leftpadmillisec,dpstimart%,timstimart, iscell%);
-    if (not(iscell%)) then 
-        zeroout(outchan%,prepad,postpad,avgstimdur,iscell%, cellavgdurprcnt, avgisi);
-    endif;
+    outchan% := substract(NrvChans%[j%],avgdart[1:tlen%],prepaddp%,dpstimart%);
+next
+
+'FIND THE AVERAGE PERI STIMULUS WAVE FORM, SET LEFT PAD
+' manually set perpaddp, and dp stimart
+prepaddp% := 10;
+dpstimart% := 200;
+for j% := 1 to NumCellChans% do
+    findcellstimart(CellChans%[j%],avgdart[],prepaddp%,dpstimart%);
+    tlen% := avgdart[0];
+    PrintLog(avgdart[1:tlen%]);
+    outchan% := cellsubstract(CellChans%[j%],avgdart[1:tlen%],prepaddp%,dpstimart%);
 next
 
 'FUNCTIONS ARE DEFINED BELOW:
-func substract(chan%,avgstimart[], prepadmillisec, dplength%,timart, iscll%) 'give the time over which to avg the cell mem as prcnt(of avgisi)
+func substract(chan%,avgstimart[], prepaddp%, dplength%) 'give the time over which to avg the cell mem as prcnt(of avgisi)
     var dupchan%;
     dupchan% := MemChan(0,chan%);
     MemImport(dupchan%,chan%,0,MaxTime(chan%));
 
     var i%, count%;
-    var tmp[dplength%], prestimavg, thistmplength%, avgrmp := 0, bumprmp;
+    var tmp[dplength%], tmpstart, tmpstop, thistmplength%, avgrmp := 0, bumprmp;
     count% := 0;
-    for i% := 1 to stims[0]-1 do
-    thistmplength% := ChanData(chan%,tmp[],stims[i%]-(prepadmillisec/1000),stims[i%+1]-(prepadmillisec/1000));
-    ArrSub(tmp[],avgstimart[]);
-    if (iscll%) then
-        avgrmp := ChanValue(chan%, stims[i%]-(prepadmillisec/1000)+(dplength%/smplrate));
-        bumprmp := tmp[dplength%-1]-avgrmp;
-        ArrSub(tmp[],bumprmp);
-    endif;
-    ChanWriteWave(dupchan%,tmp[],stims[i%]-(prepadmillisec/1000));
+    for i% := 0 to NumStims% do
+        tmpstart := stims[i%]-BinToX(prepaddp%);
+        tmpstop := stims[i%]+BinToX(dpstimart%-prepaddp%);
+        thistmplength% := ChanData(chan%,tmp[],stims[i%]-BinToX(prepaddp%),stims[i%]+BinToX(dpstimart%-prepaddp%));
+        ArrSub(tmp[0:thistmplength%],avgstimart[0:thistmplength%]);
+        'zeroout the actual stimulus
+        ArrConst(tmp[prepaddp%-1:0.006/smplrate],0);
+        ChanWriteWave(dupchan%,tmp[],stims[i%]-BinToX(prepaddp%));
     next;
     return dupchan%
 end
 
-proc zeroout(chan%, prestartmilli, postendmilli, avgdur, iscll%, cellavgdur, avgisi); 'avgisi is time not data points
-    var i%, ontmp, prelen%, postlen%, avgrmp;
-    prelen% := Ceil((prestartmilli/1000)*smplrate);
-    postlen% := Ceil((avgdur*smplrate)+(postendmilli/1000)*smplrate);
-    var prearr[prelen%], postarr[postlen%];
-    for i% := 1 to stims[0]-1 do
-        ontmp := MemGetItem(stimeventstart%, i%);
-        ChanWriteWave(chan%, prearr[], ontmp-(prestartmilli/1000));
-        ChanWriteWave(chan%, postarr[], ontmp-0.001);
-    next
+'FUNCTIONS ARE DEFINED BELOW:
+func cellsubstract(chan%,avgstimart[], prepaddp%, dplength%) 'give the time over which to avg the cell mem as prcnt(of avgisi)
+    var dupchan%;
+    dupchan% := MemChan(0,chan%);
+    MemImport(dupchan%,chan%,0,MaxTime(chan%));
+
+    var i%, count%;
+    var tmp[dplength%], tmpstart, tmpstop, thistmplength%, avgrmp := 0, bumprmp;
+    count% := 0;
+    for i% := 0 to NumStims% do
+        tmpstart := stims[i%]-BinToX(prepaddp%);
+        tmpstop := stims[i%]+BinToX(dpstimart%-prepaddp%);
+        thistmplength% := ChanData(chan%,tmp[],stims[i%]-BinToX(prepaddp%),stims[i%]+BinToX(dpstimart%-prepaddp%));
+        ArrSub(tmp[0:thistmplength%],avgstimart[0:thistmplength%]);
+        ChanWriteWave(dupchan%,tmp[],stims[i%]-BinToX(prepaddp%));
+    next;
+    return dupchan%
 end
 
-func findavgstmdur(stimon%, stimoff%);
-    var i%, numevents%, midstart%, midlen%, avgdur;
-    numevents% := stims[0];
-    var stimson[numevents%], stimsoff[numevents%];
-    ChanData(stimon%,stimson[],startt,endt);
-    ChanData(stimoff%,stimsoff[],startt,endt);
-    midstart% := floor(numevents%*0.2);
-    midlen% := floor(numevents%- (numevents%*0.4));
-    var midarray[midlen%];
-    ArrAdd(midarray[],stimsoff[midstart% : midlen%]);
-    ArrSub(midarray[],stimson[midstart% : midlen%]);
-    ArrSum(midarray[], avgdur);
-    Return avgdur;
-end
-    
-func findstimulusstart(n%)
-    var stimevent%, enthresh;
-    var append$ := "sVNT";
-    stimevent% := MemChan(2);
-    enthresh := findsixsigma(n%);
-    MemImport(stimevent%, n%, startt, endt, 2, 0, enthresh);
-    setchantitle(n%, stimevent%, append$);
-    return stimevent%
-end
-
-func findstimulusend(n%)
-    var stimevent%, enthresh;
-    var append$ := "eVNT";
-    stimevent% := MemChan(2);
-    enthresh := findsixsigma(n%);
-    MemImport(stimevent%, n%, startt, endt, 3, 0, enthresh);
-    setchantitle(n%, stimevent%, append$);
-    return stimevent%
-end
-
-
-func findavgisi(evntstimchan%)
-    var i%, favgisi, numevents%, midstart%, midlen%;
-    numevents% := stims[0];
-    midstart% := floor(numevents%*0.2);
-    midlen% := floor(numevents%- (numevents%*0.4));
-    var midarray[midlen%];
-    ArrAdd(midarray,stims[midstart% : midlen%]);
-    ArrDiff(midarray[]);
-    ArrSum(midarray[1:midlen%-1], favgisi);
-    Return favgisi;
-end
-
-func findminisi(evntstimchan%)
-    var i%, minisi, numevnts%;
-    numevnts% := stims[0];
-    var events[numevnts%];
-    ArrAdd(events[],stims[1 : numevnts%]);
-    ArrDiff(events[]);
-    Min(events[]);
-    Return minisi;
-end
-            
-func findavgstimart(chan%,avgart[],prepadmillisec, dplength%, timart)    
+func findavgstimart(chan%, avgart[],prepaddp%, dplength%)    
     ArrMul(avgart[],0);
     var i%, count%;
     var tmp[dplength%], sumtmp[dplength%];
     count% := 0;
-    for i% := 1 to stims[0]-1 do
-        ChanData(chan%,tmp[],stims[i%]-(prepadmillisec/1000),stims[i%]+timart);
+    for i% := 0 to NumStims% do
+        ChanData(chan%,tmp[],stims[i%]-BinToX(prepaddp%),stims[i%]+BinToX(dpstimart%-prepaddp%));
         ArrAdd(sumtmp[],tmp[]);
         count% := count% + 1;
     next;
@@ -168,12 +138,22 @@ func findavgstimart(chan%,avgart[],prepadmillisec, dplength%, timart)
     ArrAdd(avgart[1:],sumtmp[]);
 end
 
-func findsixsigma(n%)
-    var mean, sdd, thresh;
-    mean := ChanMeasure(n%,2,startt,endt);
-    sdd  := ChanMeasure(n%,12,startt,endt);
-    thresh := mean + (6*sdd);
-    return thresh;
+func findcellstimart(chan%, avgart[],prepaddp%, dplength%)    
+    ArrMul(avgart[],0);
+    var i%, count%;
+    var tmp[dplength%], sumtmp[dplength%-1];
+    count% := 0;
+    for i% := 0 to NumStims% do
+    ChanData(chan%,tmp[],stims[i%]-BinToX(prepaddp%),stims[i%]+BinToX(dpstimart%-prepaddp%));
+        'try differentiating
+        ArrDiff(tmp[]);
+        ArrAdd(sumtmp[],tmp[1:]);
+        count% := count% + 1;
+    next;
+    ArrDiv(sumtmp, count%);
+    ArrIntgl(sumtmp[]);
+    avgart[0] := dplength%;
+    ArrAdd(avgart[1:],sumtmp[]);
 end
 
 proc setchantitle(inchan%, outchan%, appendstring$)
