@@ -34,12 +34,10 @@ ChanList(NrvChans%[],65536);
 NumNrvChans% := NrvChans%[0];
 resize NrvChans%[NumNrvChans%+1];
 
-Interact("select all your cell channels to DEARTIFICATIFY", 65536, 0, "&O Okay");
-ChanList(CellChans%[],65536);
-NumCellChans% := CellChans%[0];
-
 CursorDelete(-1);
-CursorNew();CursorNew();
+var winrange;
+winrange := XHigh() - XLow();
+CursorNew(XLow()+(winrange*0.1));CursorNew(XHigh()-(winrange*0.1));
 
 'DEMARK TIMES
 var startt,endt;
@@ -72,17 +70,6 @@ for j% := 1 to NumNrvChans% do
     outchan% := substract(NrvChans%[j%],avgdart[1:tlen%],prepaddp%,dpstimart%);
 next
 
-'FIND THE AVERAGE PERI STIMULUS WAVE FORM, SET LEFT PAD
-' manually set perpaddp, and dp stimart
-prepaddp% := 10;
-dpstimart% := 200;
-for j% := 1 to NumCellChans% do
-    findcellstimart(CellChans%[j%],avgdart[],prepaddp%,dpstimart%);
-    tlen% := avgdart[0];
-    PrintLog(avgdart[1:tlen%]);
-    outchan% := cellsubstract(CellChans%[j%],avgdart[1:tlen%],prepaddp%,dpstimart%);
-next
-
 'FUNCTIONS ARE DEFINED BELOW:
 func substract(chan%,avgstimart[], prepaddp%, dplength%) 'give the time over which to avg the cell mem as prcnt(of avgisi)
     var dupchan%;
@@ -104,25 +91,6 @@ func substract(chan%,avgstimart[], prepaddp%, dplength%) 'give the time over whi
     return dupchan%
 end
 
-'FUNCTIONS ARE DEFINED BELOW:
-func cellsubstract(chan%,avgstimart[], prepaddp%, dplength%) 'give the time over which to avg the cell mem as prcnt(of avgisi)
-    var dupchan%;
-    dupchan% := MemChan(0,chan%);
-    MemImport(dupchan%,chan%,0,MaxTime(chan%));
-
-    var i%, count%;
-    var tmp[dplength%], tmpstart, tmpstop, thistmplength%, avgrmp := 0, bumprmp;
-    count% := 0;
-    for i% := 0 to NumStims% do
-        tmpstart := stims[i%]-BinToX(prepaddp%);
-        tmpstop := stims[i%]+BinToX(dpstimart%-prepaddp%);
-        thistmplength% := ChanData(chan%,tmp[],stims[i%]-BinToX(prepaddp%),stims[i%]+BinToX(dpstimart%-prepaddp%));
-        ArrSub(tmp[0:thistmplength%],avgstimart[0:thistmplength%]);
-        ChanWriteWave(dupchan%,tmp[],stims[i%]-BinToX(prepaddp%));
-    next;
-    return dupchan%
-end
-
 func findavgstimart(chan%, avgart[],prepaddp%, dplength%)    
     ArrMul(avgart[],0);
     var i%, count%;
@@ -134,24 +102,6 @@ func findavgstimart(chan%, avgart[],prepaddp%, dplength%)
         count% := count% + 1;
     next;
     ArrDiv(sumtmp, count%);
-    avgart[0] := dplength%;
-    ArrAdd(avgart[1:],sumtmp[]);
-end
-
-func findcellstimart(chan%, avgart[],prepaddp%, dplength%)    
-    ArrMul(avgart[],0);
-    var i%, count%;
-    var tmp[dplength%], sumtmp[dplength%-1];
-    count% := 0;
-    for i% := 0 to NumStims% do
-    ChanData(chan%,tmp[],stims[i%]-BinToX(prepaddp%),stims[i%]+BinToX(dpstimart%-prepaddp%));
-        'try differentiating
-        ArrDiff(tmp[]);
-        ArrAdd(sumtmp[],tmp[1:]);
-        count% := count% + 1;
-    next;
-    ArrDiv(sumtmp, count%);
-    ArrIntgl(sumtmp[]);
     avgart[0] := dplength%;
     ArrAdd(avgart[1:],sumtmp[]);
 end
