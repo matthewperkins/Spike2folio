@@ -22,9 +22,13 @@ var SnglSlctChn%[2];
 
 'STIMULUS TRIGGER
 var StimTrigChan%;
+var StimBrstChan%,NumBrsts%;
 Interact("Select event channel with stimulus triggers", 65536, 0, "&O Okay");
 ChanList(SnglSlctChn%, 65536);
 StimTrigChan%:= SnglSlctChn%[1];
+StimBrstChan% := MemChan(5,StimTrigChan%);
+NumBrsts% := BurstMake(StimBrstChan%,StimTrigChan%,0,MaxTime(),3);
+InvrtBrstMake(StimBrstChan%);
 
 'NEUROGRAMS TO DEARTIFICATIFY
 var NrvChans%[10], CellChans%[10];
@@ -46,15 +50,24 @@ startt := Cursor(1);
 endt := Cursor(2);
 
 'FIND AVERAGE ISI, TO INDEX ARRAYS WITH
-var NumStims%;
+var NumStims%, calcisi[50000], avgisis[100];
 var avgisi, dpavgisi%, dpstimart%, timstimart, avgstimdur, minisi, minisidp%;
 smplrate := BinSize(NrvChans%[1]);
-NumStims% := ChanData(StimTrigChan%,stims[],startt,endt);
-ArrDiff(stims[0:NumStims%]);
-avgisi := ArrSum(stims[1:NumStims%-1])/(NumStims%-1);
-ArrIntgl(stims[0:NumStims%]);
-dpavgisi% := XToBin(avgisi);
+var BurstStart, BurstEnd, m%;
+BurstEnd := 0;
+for m% := 1 to NumBrsts% do
+    BurstStart := GetNextCode(StimBrstChan%, BurstEnd, startcode%[]);
+    BurstEnd := GetNextCode(StimBrstChan%, BurstStart, endcode%[]);
+    NumStims% := ChanData(StimTrigChan%,calcisi[],BurstStart,BurstEnd);
+    ArrDiff(calcisi[0:NumStims%]);
+    avgisis[m%-1] := ArrSum(calcisi[1:NumStims%-1])/(NumStims%-1);
+next
+avgisi := ArrSum(avgisis[0:NumBrsts%])/(NumBrsts%);
+dpavgisi% := XToBin(ArrSum(avgisis)/NumBrsts%);
 dpstimart% := dpavgisi%-XToBin(avgisi)*0.2;
+
+'GET Stimulus times into stims array
+NumStims% := ChanData(StimTrigChan%,stims[],startt,endt);
 
 'SET PADDINGS
 var leftpadmillisec, prepaddp%, postpad, cellavgdurprcnt;
