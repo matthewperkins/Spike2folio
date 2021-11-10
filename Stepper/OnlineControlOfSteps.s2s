@@ -1,0 +1,105 @@
+                                                                   
+'''HANDLE MAIN VIEW'''
+                                                                             
+'Set the current view to top
+var GVt%;
+var GAllViewList%[30];
+var GTimeViewList%[30];
+var GScriptViewList%[30];
+var GChanList%[30];
+var GChanListDrawMode%[30];
+var GSlctChan%[20];
+                                                                    
+'''HANDLE MAIN VIEW'''
+                                                                             
+'Save the current view
+'Inspect the views
+var list%[100],i%;         'Assume no more than 99 views
+ViewList(list%[]);         'Get a list of all the views
+for i%:=1 to list%[0] do   'Iterate round all the views
+   PrintLog("%d \n", i%);
+   PrintLog(view(list%[i%]).WindowTitle$());
+next;
+
+GVt% := View(0);  
+ViewList(GAllViewList%[]);
+ViewList(GTimeViewList%[],1);
+ViewList(GScriptViewList%[],8);
+
+'Save visible channels
+View(3); ' trying to get the play wave back
+ChanList(GChanList%[], 2048);
+ChanList(GSlctChan%[], 65536);
+DrawAll();
+
+'Set some default values:
+var pAStep% := 20, pAStart% := -40;
+var mVStep% := 10, mVStart% := -40;
+var cc_ISI := 5, vc_ISI := 20;
+var cc_Dur := 1, vc_Dur := 1;
+var NumCCSteps% := 10, NumVCSteps% := 10;
+'Get the running sequence rate for calculation of time periods
+var msPerTick;
+msPerTick := SampleSeqClock(1);
+
+'Set up the toolbar
+ToolbarClear();
+ToolbarSet(1 , "VOLTAGE||Set Voltage Clamp Sequence Values", VCSeq%);
+ToolbarSet(2 , "CURRENT||Set Current Clamp Sequence Values", CCSeq%);
+ToolbarSet(3 , "OUT||quit", out%);
+ToolbarVisible(1);
+ToolbarEnable(-1,1);
+View(GVt%);
+Toolbar("",1023);
+
+'''''''''''''''''TOOLBAR FUNCTIONS ''''''''''''''''''''''
+'THESE WILL WORK ON THE GLOBAL Cspc%[] MemChan%[]
+'NOTE THESE DEPEND ON SOME OTHER GLOBELS
+var ok% := 0;
+func VCseq%()
+    'Get input for new value for pA
+    DlgCreate ("Change Voltage Clamp Commands");        'start new dialog
+    DlgInteger(1, "mV Start prompt", -200, 2000); 
+    DlgInteger(2, "mV Step prompt", -200, 2000); 
+    DlgInteger(3, "Number Steps", 0, 20); 
+    DlgReal   (4, "Voltage Clamp Step Interval", 0.01, 1000); 
+    DlgReal   (5, "Voltage Clamp Step duration", 0.01, 1000); 
+    ok% := DlgShow(mVStart%,mVStep%,NumVCSteps%,vc_ISI,vc_Dur); 'show dialogreturn(1);
+    Update();
+    return(1);
+end
+
+func CCseq%()
+    'Get input for new value for pA
+    DlgCreate ("Change Current Clamp Commands");        'start new dialog
+    DlgInteger(1, "pA Start prompt", -2000, 1999); 'integer range 0-255
+    DlgInteger(2, "pA step prompt", -2000, 1999); 
+    DlgInteger(3, "Number Steps", 0, 20); 
+    DlgReal   (4, "Current Clamp Step Interval, Seconds", 0.01, 1000); 
+    DlgReal   (5, "Current Clamp Step duration", 0.01, 1000); 
+    ok% := DlgShow(pAStart%,pAStep%,NumCCSteps%,cc_ISI,cc_Dur); 'show dialogreturn(1);
+    Update();
+    return(1);
+end
+
+func out%()
+    'Get input for new value for pA
+    return(0);
+end
+
+proc Update()
+    'just do them all 
+    'current clamp:
+    SampleSeqVar(1,pAStart%);
+    SampleSeqVar(3,pAStep%);
+    SampleSeqVar(22,NumCCSteps%);
+    SampleSeqVar(7,cc_ISI*(1000/msPerTick));
+    SampleSeqVar(6,cc_Dur*(1000/msPerTick));
+    'voltage clamp:
+    SampleSeqVar(8,mVStart%);
+    SampleSeqVar(10,mVStep%);
+    SampleSeqVar(23,NumVCSteps%);
+    SampleSeqVar(14,vc_ISI*(1000/msPerTick));
+    SampleSeqVar(13,vc_Dur*(1000/msPerTick));
+end
+
